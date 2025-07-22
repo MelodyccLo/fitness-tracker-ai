@@ -11,3 +11,11 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
+
+@media (max-width: 991.98px) {
+  .navbar-collapse .custom-logout-btn {
+    display: block; /* Make it a block element */
+    width: 100%;    /* Make it take full width */
+    text-align: left; /* Align text to the left */
+  }
+}

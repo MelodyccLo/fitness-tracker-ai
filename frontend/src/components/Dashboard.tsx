@@ -31,19 +31,25 @@ const Dashboard: React.FC = () => {
     fetchProfile();
   }, []);
 
-  if (loading) return <div className="p-4">Loading dashboard...</div>;
-  if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
-  if (!user) return <div className="p-4">No user data found.</div>;
+  if (loading) return <div className="container mt-5"><p>Loading dashboard...</p></div>;
+  if (error) return <div className="container mt-5"><div className="alert alert-danger">Error: {error}</div></div>;
+  if (!user) return <div className="container mt-5"><p>No user data found.</p></div>;
 
   return (
-    <div className="p-4">
-      <h1 className="text-3xl font-bold mb-4">Welcome, {user.username}!</h1>
-      <p>Email: {user.email}</p>
-      {user.age && <p>Age: {user.age}</p>}
-      {user.height && <p>Height: {user.height} cm</p>}
-      {user.weight && <p>Weight: {user.weight} kg</p>}
-      {user.fitnessLevel && <p>Fitness Level: {user.fitnessLevel}</p>}
-      {/* Add more dashboard content here */}
+    <div className="container mt-5">
+      <div className="card">
+        <div className="card-header">
+          <h2>Dashboard</h2>
+        </div>
+        <div className="card-body">
+          <h5 className="card-title">Welcome, {user.username}!</h5>
+          <p className="card-text">Email: {user.email}</p>
+          {user.age && <p className="card-text">Age: {user.age}</p>}
+          {user.height && <p className="card-text">Height: {user.height} cm</p>}
+          {user.weight && <p className="card-text">Weight: {user.weight} kg</p>}
+          {user.fitnessLevel && <p className="card-text">Fitness Level: {user.fitnessLevel}</p>}
+        </div>
+      </div>
     </div>
   );
 };
