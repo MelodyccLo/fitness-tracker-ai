@@ -58,7 +58,7 @@ Exercise.init(
       defaultValue: [],
     },
     checkpoints: {
-      type: DataTypes.JSONB, // Store as JSONB for complex nested data [cite: 51]
+      type: DataTypes.JSONB, // Store as JSONB for complex nested data
       allowNull: false,
       defaultValue: [],
     },

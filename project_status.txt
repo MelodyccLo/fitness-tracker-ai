@@ -1,0 +1,35 @@
+# Fitness Tracker AI - Project Status
+
+## Overview
+
+This document outlines the current progress of the Fitness Tracker AI project based on the "Fitness Test Web Application - Project Plan.pdf".
+
+## Current Status: Phase 1 Complete
+
+The project has completed the "Phase 1: Core Setup". The frontend and backend have been set up with the core functionalities implemented.
+
+### Frontend (`/frontend`)
+
+*   **Framework:** React.
+*   **Styling:** Simple React formatting (No Tailwind CSS).
+*   **Progress:**
+    *   Basic React app structure with components, pages, and utils.
+    *   User authentication UI is implemented.
+    *   MediaPipe integration for pose detection is complete.
+
+### Backend (`/backend`)
+
+*   **Framework:** Node.js with Express.
+*   **Database:** PostgreSQL is set up and configured.
+*   **Authentication:** User authentication with JWT is implemented.
+*   **API:** Basic API endpoints for user authentication and other core features are in place, suggested by the `routes` and `models` directories.
+
+## Next Steps: Phase 2 - Exercise Engine
+
+Based on the project plan, the next steps are to begin "Phase 2: Exercise Engine":
+
+1.  **Implement angle calculation algorithms.**
+2.  **Create an exercise configuration system.**
+3.  **Build rep counting logic.**
+4.  **Add timer functionality.**
+5.  **Create the exercise selection UI.**

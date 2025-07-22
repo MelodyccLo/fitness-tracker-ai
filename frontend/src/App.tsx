@@ -3,6 +3,7 @@ import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ExerciseSelection from './pages/ExerciseSelection';
 import Dashboard from "./components/Dashboard";
 import PrivateRoute from "./components/PrivateRoute";
 
@@ -59,6 +60,17 @@ const App: React.FC = () => {
           >
             Register
           </Link>
+          {/* Add this link to ExerciseSelection */}
+          <Link
+            to="/exercises"
+            style={{
+              marginRight: "1rem",
+              color: "white",
+              textDecoration: "none",
+            }}
+          >
+            Exercises
+          </Link>
           {localStorage.getItem("token") && (
             <button
               onClick={handleLogout}
@@ -79,6 +91,15 @@ const App: React.FC = () => {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        {/* Add this route for ExerciseSelection */}
+        <Route
+          path="/exercises"
+          element={
+            <PrivateRoute>
+              <ExerciseSelection />
+            </PrivateRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={
@@ -87,7 +108,8 @@ const App: React.FC = () => {
             </PrivateRoute>
           }
         />
-        {/* Add other protected routes as needed */}
+        {/* You will also need a route for a specific exercise workout page, e.g., /exercise/:id */}
+        {/* <Route path="/exercise/:id" element={<PrivateRoute><WorkoutPage /></PrivateRoute>} /> */}
       </Routes>
     </>
   );

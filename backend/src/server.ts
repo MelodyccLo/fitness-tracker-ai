@@ -4,12 +4,13 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { connectDB } from './config/database';
-import authRoutes from './routes/auth';
+import authRoutes from './routes/authRoutes';
+import exercisesRoutes from './routes/exercisesRoutes';
 import { sequelize } from './models';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Middleware
 app.use(helmet());
@@ -19,6 +20,7 @@ app.use(express.json());
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/exercises', exercisesRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {
