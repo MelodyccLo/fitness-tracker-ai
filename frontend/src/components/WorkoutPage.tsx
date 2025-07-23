@@ -6,7 +6,6 @@ import React, {
   useMemo,
 } from "react";
 import { useParams } from "react-router-dom";
-import { Camera } from "@mediapipe/camera_utils";
 import { drawConnectors, drawLandmarks } from "@mediapipe/drawing_utils";
 import { Pose, POSE_CONNECTIONS, Results } from "@mediapipe/pose";
 import {
@@ -30,89 +29,68 @@ interface Exercise {
 
 const WorkoutPage: React.FC = () => {
   const { id: exerciseId } = useParams<{ id: string }>();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const videoElementRef = useRef<HTMLVideoElement>(null);
+  const canvasElementRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<CanvasRenderingContext2D | null>(null);
-  const poseRef = useRef<Pose | null>(null);
-  const cameraRef = useRef<Camera | null>(null);
+
+  const [isVideoElementReady, setIsVideoElementReady] = useState(false);
+  const [isCanvasElementReady, setIsCanvasElementReady] = useState(false);
+
   const repCounterRef = useRef<RepCounter | null>(null);
+
+  const currentRepsRef = useRef(0);
+  const formFeedbackRef = useRef("Stand still to begin.");
 
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const isWorkoutRunningRef = useRef(false);
   const [isWorkoutRunning, setIsWorkoutRunning] = useState(false);
-  const [currentReps, setCurrentReps] = useState(0);
-  const [formFeedback, setFormFeedback] = useState("Stand still to begin.");
+  useEffect(() => {
+    isWorkoutRunningRef.current = isWorkoutRunning;
+  }, [isWorkoutRunning]);
+
   const [workoutDuration, setWorkoutDuration] = useState(0);
 
-  // Helper mapping from descriptive name to MediaPipe's numerical index
+  const [displayReps, setDisplayReps] = useState(0);
+  const [displayFeedback, setDisplayFeedback] = useState(
+    "Stand still to begin."
+  );
+
   const landmarkNameToIndex = useMemo(() => {
-    // Add an index signature to the return type of this useMemo
     const map: { [key: string]: number } = {
-      nose: 0,
-      left_eye_inner: 1,
-      left_eye: 2,
-      left_eye_outer: 3,
-      right_eye_inner: 4,
-      right_eye: 5,
-      right_eye_outer: 6,
-      left_ear: 7,
-      right_ear: 8,
-      mouth_left: 9,
-      mouth_right: 10,
       left_shoulder: 11,
       right_shoulder: 12,
       left_elbow: 13,
       right_elbow: 14,
       left_wrist: 15,
       right_wrist: 16,
-      left_pinky: 17,
-      right_pinky: 18,
-      left_index: 19,
-      right_index: 20,
-      left_thumb: 21,
-      right_thumb: 22,
       left_hip: 23,
       right_hip: 24,
       left_knee: 25,
       right_knee: 26,
       left_ankle: 27,
       right_ankle: 28,
-      left_heel: 29,
-      right_heel: 30,
-      left_foot_index: 31,
-      right_foot_index: 32,
     };
     return map;
-  }, []); // Empty dependency array means it's created only once
+  }, []);
 
+  // --- onResults Callback ---
   const onResults = useCallback(
     (results: Results) => {
-      if (
-        !contextRef.current ||
-        !canvasRef.current ||
-        !videoRef.current ||
-        !exercise
-      )
-        return;
-
       const canvasCtx = contextRef.current;
+      const canvas = canvasElementRef.current;
+      const video = videoElementRef.current; // Get the current video element directly
+
+      // Check for null refs for safety
+      if (!canvasCtx || !canvas || !video || !exercise) return;
 
       canvasCtx.save();
-      canvasCtx.clearRect(
-        0,
-        0,
-        canvasRef.current.width,
-        canvasRef.current.height
-      );
-
-      canvasCtx.drawImage(
-        results.image,
-        0,
-        0,
-        canvasRef.current.width,
-        canvasRef.current.height
-      );
+      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+      // It's crucial to draw the video image onto the canvas here
+      canvasCtx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
 
       if (results.poseLandmarks) {
         const mpLandmarks = results.poseLandmarks;
@@ -148,7 +126,7 @@ const WorkoutPage: React.FC = () => {
         const jointsToHighlightRed: number[] = [];
         const connectionsToHighlightRed: [number, number][] = [];
 
-        if (isWorkoutRunning && repCounterRef.current) {
+        if (repCounterRef.current && isWorkoutRunningRef.current) {
           exercise.checkpoints.forEach((checkpoint) => {
             const p1 = landmarksMap[checkpoint.keypoint1];
             const p2 = landmarksMap[checkpoint.keypoint2];
@@ -166,7 +144,6 @@ const WorkoutPage: React.FC = () => {
               if (currentFrameFeedback === "") {
                 currentFrameFeedback = "Ensure full body is visible!";
               }
-              
               const p1Idx = landmarkNameToIndex[checkpoint.keypoint1];
               const p2Idx = landmarkNameToIndex[checkpoint.keypoint2];
               const p3Idx = landmarkNameToIndex[checkpoint.keypoint3];
@@ -181,6 +158,8 @@ const WorkoutPage: React.FC = () => {
               return;
             }
 
+            // Calculate the angle between the three points
+            if (!p1 || !p2 || !p3) return; // Ensure all points are defined
             const currentAngle = calculateAngle(p1, p2, p3);
             const isInRange =
               Math.abs(currentAngle - checkpoint.targetAngle) <=
@@ -228,17 +207,22 @@ const WorkoutPage: React.FC = () => {
                 jointsToHighlightRed.push(p3Idx);
             }
           });
-
+          // If form is correct, update reps and feedback
           const newReps = repCounterRef.current.detectRep(landmarksMap);
-          if (newReps !== currentReps) {
-            setCurrentReps(newReps);
-            setFormFeedback("Great Rep!");
+          if (newReps !== currentRepsRef.current) {
+            currentRepsRef.current = newReps;
+            setDisplayReps(newReps);
+            formFeedbackRef.current = "Great Rep!";
+            setDisplayFeedback("Great Rep!");
           } else if (overallFormCorrect && currentFrameFeedback === "") {
-            setFormFeedback("Good form!");
+            formFeedbackRef.current = "Good form!";
+            setDisplayFeedback("Good form!");
           } else if (currentFrameFeedback !== "") {
-            setFormFeedback(currentFrameFeedback);
+            formFeedbackRef.current = currentFrameFeedback;
+            setDisplayFeedback(currentFrameFeedback);
           } else {
-            setFormFeedback("Adjust your position.");
+            formFeedbackRef.current = "Adjust your position.";
+            setDisplayFeedback("Adjust your position.");
           }
         }
 
@@ -271,17 +255,15 @@ const WorkoutPage: React.FC = () => {
       }
       canvasCtx.restore();
     },
-    [exercise, isWorkoutRunning, currentReps, landmarkNameToIndex]
+    [exercise, landmarkNameToIndex]
   );
 
-  // ... rest of the component (useEffect, handlers, return JSX) remains the same
+  // --- useEffect to fetch Exercise details ---
+  // This useEffect runs once when the component mounts to fetch exercise details
+  // and sets up the RepCounter.
+  // It also handles errors and loading state.
+  // It does not depend on the MediaPipe or camera setup.
   useEffect(() => {
-    const currentVideoRef = videoRef.current;
-    const currentCanvasRef = canvasRef.current;
-    const currentContextRef = contextRef.current;
-    const currentPoseRef = poseRef.current;
-    const currentCameraRef = cameraRef.current;
-
     const fetchExercise = async () => {
       try {
         const res = await api.get<Exercise>(`/exercises/${exerciseId}`);
@@ -303,15 +285,55 @@ const WorkoutPage: React.FC = () => {
       setError("No exercise ID provided.");
       setLoading(false);
     }
+  }, [exerciseId]);
 
-    if (!poseRef.current) {
-      poseRef.current = new Pose({
+  // --- Unified useEffect for MediaPipe, Camera Setup, and Canvas Context ---
+  // This useEffect will run when `isVideoElementReady` and `isCanvasElementReady` become true
+  useEffect(() => {
+    console.log("Unified MediaPipe & Camera Setup useEffect: Running.");
+
+    const videoElement = videoElementRef.current;
+    const canvasElement = canvasElementRef.current;
+    let ctx: CanvasRenderingContext2D | null = null;
+
+    let pose: Pose | null = null;
+    let frameId: number | null = null; // To hold requestAnimationFrame ID
+
+    if (
+      isVideoElementReady &&
+      isCanvasElementReady &&
+      videoElement &&
+      canvasElement
+    ) {
+      console.log(
+        "Unified MediaPipe & Camera Setup useEffect: All refs and state confirm mount. Proceeding with setup."
+      );
+
+      // 1. Get Canvas Context
+      ctx = canvasElement.getContext("2d");
+      if (ctx) {
+        contextRef.current = ctx;
+        console.log("Canvas context successfully initialized.");
+      } else {
+        console.error("Failed to get 2D context from canvas. Cannot proceed.");
+        setError("Your browser does not support canvas 2D rendering.");
+        return;
+      }
+
+      // 2. Set initial canvas dimensions
+      canvasElement.width = videoElement.videoWidth || 640;
+      canvasElement.height = videoElement.videoHeight || 480;
+      console.log("Canvas initial dimensions set.");
+
+      // 3. Initialize Pose model
+      console.log("Initializing Pose model.");
+      pose = new Pose({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
         },
       });
 
-      poseRef.current.setOptions({
+      pose.setOptions({
         modelComplexity: 1,
         smoothLandmarks: true,
         enableSegmentation: false,
@@ -319,52 +341,125 @@ const WorkoutPage: React.FC = () => {
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5,
       });
-      poseRef.current.onResults(onResults);
-    }
 
-    if (currentVideoRef && poseRef.current && !cameraRef.current) {
-      cameraRef.current = new Camera(currentVideoRef, {
-        onFrame: async () => {
-          if (poseRef.current && currentVideoRef) {
-            await poseRef.current.send({ image: currentVideoRef });
-          }
-        },
-        width: 640,
-        height: 480,
-      });
-      cameraRef.current.start();
-    }
+      // Crucial: onResults is a dependency of this useEffect, but its identity is stable
+      pose.onResults(onResults);
+      console.log("Pose model initialized and onResults bound.");
 
-    return () => {
-      if (currentCameraRef) {
-        currentCameraRef.stop();
-      }
-      if (currentPoseRef) {
-        currentPoseRef.close();
-      }
-      if (currentContextRef && currentCanvasRef) {
-        currentContextRef.clearRect(
-          0,
-          0,
-          currentCanvasRef.width,
-          currentCanvasRef.height
+      // 4. Setup Camera (using navigator.mediaDevices for finer control)
+      console.log(
+        "Attempting to get media stream and setup custom frame loop."
+      );
+      navigator.mediaDevices
+        .getUserMedia({ video: { width: 640, height: 480 } })
+        .then((stream) => {
+          videoElement.srcObject = stream;
+          videoElement.onloadedmetadata = () => {
+            videoElement.play();
+            // Start sending frames after video starts playing
+            // Use local 'pose' variable in sendFrameToPose
+            const currentPose = pose; // Capture pose in this scope
+            const currentVideo = videoElement; // Capture video in this scope
+
+            const sendFrameToPose = async () => {
+              // Only send if pose is not null and video is ready
+              if (currentVideo.readyState === 4 && currentPose) {
+                try {
+                  await currentPose.send({ image: currentVideo });
+                } catch (e: any) {
+                  console.warn(
+                    "Error sending image to pose model, likely cleanup in progress:",
+                    e.message
+                  );
+                  if (
+                    e.message.includes("deleted object") &&
+                    frameId !== null
+                  ) {
+                    cancelAnimationFrame(frameId);
+                    frameId = null; // Mark as stopped
+                    console.log(
+                      "Stopped sending frames due to deleted pose model."
+                    );
+                  }
+                }
+              }
+              // Continue the loop only if it hasn't been explicitly canceled
+              if (frameId !== null) {
+                frameId = requestAnimationFrame(sendFrameToPose);
+              }
+            };
+            frameId = requestAnimationFrame(sendFrameToPose);
+            console.log("Camera stream started and frame loop initiated.");
+          };
+          console.log("getUserMedia resolved: Video stream acquired.");
+        })
+        .catch((err) => {
+          console.error("Failed to get video stream:", err);
+          setError(
+            "Camera access denied or failed to start. Please allow camera permissions and ensure no other app is using it. Error: " +
+              err.message
+          );
+        });
+
+      // --- Cleanup ---
+      return () => {
+        console.log(
+          "Unified MediaPipe & Camera Setup useEffect: Cleanup running."
         );
-      }
-    };
-  }, [exerciseId, onResults]);
 
-  useEffect(() => {
-    if (canvasRef.current && videoRef.current) {
-      canvasRef.current.width = videoRef.current.videoWidth || 640;
-      canvasRef.current.height = videoRef.current.videoHeight || 480;
-      contextRef.current = canvasRef.current.getContext("2d");
+        // Stop the requestAnimationFrame loop
+        if (frameId !== null) {
+          cancelAnimationFrame(frameId);
+          frameId = null;
+          console.log("Cleanup: Animation frame loop canceled.");
+        }
+
+        // Stop video stream tracks
+        if (videoElement.srcObject) {
+          const stream = videoElement.srcObject as MediaStream;
+          stream.getTracks().forEach((track) => track.stop());
+          videoElement.srcObject = null;
+          console.log("Cleanup: Video stream tracks stopped.");
+        }
+        // IMPORTANT: Close MediaPipe Pose model AFTER stopping camera/frames
+        if (pose) {
+          // Use locally scoped 'pose' for cleanup
+          console.log("Cleanup: Closing Pose model.");
+          pose.close();
+        }
+        // No need to explicitly stop MediaPipe Camera instance as we used getUserMedia directly
+        // if (camera) { console.log("Cleanup: Stopping MediaPipe Camera instance."); camera.stop(); }
+
+        if (ctx && canvasElement) {
+          console.log("Cleanup: Clearing canvas.");
+          ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        }
+      };
+    } else {
+      console.log(
+        "Unified MediaPipe & Camera Setup useEffect: Initial refs not available or context not ready. Waiting for mount.",
+        {
+          isVideoElementReady,
+          isCanvasElementReady,
+          video: videoElement,
+          canvas: canvasElement,
+          context: ctx,
+        }
+      );
+      return () => {
+        console.log(
+          "Unified MediaPipe & Camera Setup useEffect: No setup to clean up (refs not ready on initial mount)."
+        );
+      };
     }
-  }, [videoRef.current?.videoWidth, videoRef.current?.videoHeight]);
+  }, [onResults, isVideoElementReady, isCanvasElementReady]);
 
   const startWorkout = () => {
     setIsWorkoutRunning(true);
-    setCurrentReps(0);
-    setFormFeedback("Workout started! Do your first rep.");
+    currentRepsRef.current = 0;
+    setDisplayReps(0);
+    formFeedbackRef.current = "Workout started! Do your first rep.";
+    setDisplayFeedback("Workout started! Do your first rep.");
     if (repCounterRef.current) {
       repCounterRef.current.reset();
     }
@@ -372,17 +467,21 @@ const WorkoutPage: React.FC = () => {
 
   const stopWorkout = () => {
     setIsWorkoutRunning(false);
-    setFormFeedback("Workout finished!");
+    formFeedbackRef.current = "Workout finished!";
+    setDisplayFeedback("Workout finished!");
     console.log("Workout Summary:", {
       exerciseId: exercise?.name,
       duration: workoutDuration,
-      totalReps: currentReps,
+      totalReps: displayReps,
     });
   };
 
-  const handleTimeUpdate = useCallback((seconds: number) => {
-    setWorkoutDuration(seconds);
-  }, [setWorkoutDuration]);
+  const handleTimeUpdate = useCallback(
+    (seconds: number) => {
+      setWorkoutDuration(seconds);
+    },
+    [setWorkoutDuration]
+  );
 
   if (loading)
     return (
@@ -418,23 +517,32 @@ const WorkoutPage: React.FC = () => {
             border: "1px solid #ccc",
           }}
         >
+          {/* Use ref callbacks in JSX */}
           <video
-            ref={videoRef}
+            ref={(el) => {
+              videoElementRef.current = el;
+              if (el) setIsVideoElementReady(true);
+              else setIsVideoElementReady(false);
+            }}
             style={{ position: "absolute", width: "100%", height: "100%" }}
             autoPlay
             playsInline
             muted
           ></video>
           <canvas
-            ref={canvasRef}
+            ref={(el) => {
+              canvasElementRef.current = el;
+              if (el) setIsCanvasElementReady(true);
+              else setIsCanvasElementReady(false);
+            }}
             style={{ position: "absolute", width: "100%", height: "100%" }}
           ></canvas>
         </div>
       </div>
 
       <div className="text-center my-3">
-        <h3>Reps: {currentReps}</h3>
-        <p className="lead">{formFeedback}</p>
+        <h3>Reps: {displayReps}</h3>
+        <p className="lead">{displayFeedback}</p>
         <WorkoutTimer
           isRunning={isWorkoutRunning}
           onTimeUpdate={handleTimeUpdate}
