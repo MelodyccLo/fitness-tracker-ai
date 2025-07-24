@@ -1,209 +1,155 @@
-# Fitness Tracker AI - Project Status
+Fitness Tracker AI - Current Capabilities Report
 
-## Overview
+  This report details the current functionalities implemented in both the
+  frontend and backend of your Fitness Tracker AI project.
 
-This document outlines the current progress of the Fitness Tracker AI project based on the "Fitness Test Web Application - Project Plan.pdf".
+  Frontend Capabilities (/frontend)
 
-## Current Status: Phase 1 Complete
+   * Core Framework & Styling:
+       * Built with React.
+       * Styled using Bootstrap CSS, providing a responsive and modern UI.
+          Redundant navigation buttons have been removed for a streamlined
+          user experience.
+   * User Authentication:
+       * Provides dedicated Login (Login.tsx) and Register (Register.tsx)
+         pages for user authentication.
+       * Handles user sessions and authentication status, likely
+         leveraging localStorage for JWT tokens.
+   * Navigation & Layout:
+       * A persistent Navbar (Navbar.tsx) is present, dynamically
+         adjusting navigation links based on user authentication status
+         (Login/Register vs. Exercises/Logout).
+       * Routing is managed by react-router-dom, with App.tsx defining the
+          main application routes, including protected routes for
+         authenticated users.
+   * Exercise Management & Tracking:
+       * Exercise Selection Page (ExerciseSelection.tsx): Allows
+         authenticated users to view a list of available exercises fetched
+          from the backend. Each exercise is displayed with its name,
+         description, and difficulty, and links to a dedicated workout
+         page.
+       * Workout Page (WorkoutPage.tsx): This is the core page for
+         performing exercises. It is designed to integrate with MediaPipe
+         for real-time pose detection during workouts.
+       * Workout Timer (WorkoutTimer.tsx): A dedicated component to manage
+          and display the duration of workouts.
+   * Pose Detection:
+       * MediaPipe Integration: The frontend has integrated MediaPipe for
+         advanced pose detection capabilities, crucial for tracking
+         exercise form and progress. This functionality is likely utilized
+          within WorkoutPage.tsx and supported by poseUtils.ts.
+   * API Communication:
+       * A utility file (api.ts) is set up to handle communication with
+         the backend API, centralizing HTTP requests.
 
-The project has completed the "Phase 1: Core Setup". The frontend and backend have been set up with the core functionalities implemented.
+  Backend Capabilities (/backend)
 
-### Frontend (`/frontend`)
+   * Core Framework & Database:
+       * Built with Node.js and Express.js, providing a robust RESTful
+         API.
+       * Utilizes PostgreSQL as the primary database, configured via
+         config/database.ts.
+   * User Management & Authentication:
+       * User Model: A User.ts model defines the structure for user data.
+       * Authentication Routes: authRoutes.ts handles user registration
+         and login, implementing JWT (JSON Web Token) for secure
+         authentication.
+       * Authentication Middleware: middleware/auth.ts provides middleware
+          for protecting API routes, ensuring only authenticated users can
+          access certain resources.
+   * API Endpoints:
+       * Authentication Endpoints: Routes for user registration and login.
+       * Exercise Endpoints: exercisesRoutes.ts is in place to manage
+         exercise data, allowing the frontend to fetch exercise lists. The
+          Exercise.ts model defines the structure for exercise data,
+         including checkpoints for pose detection.
+       * Session Endpoints: sessions.ts and Session.ts indicate the
+         presence of API routes and a model for managing workout sessions,
+          likely for saving workout history and progress.
 
-*   **Framework:** React.
-*   **Styling:** Simple React formatting (No Tailwind CSS).
-*   **Progress:**
-    *   Basic React app structure with components, pages, and utils.
-    *   User authentication UI is implemented.
-    *   MediaPipe integration for pose detection is complete.
+  In summary, the project has a solid foundation with complete user
+  authentication, a structured frontend for exercise selection and
+  workout execution with integrated pose detection, and a backend
+  capable of managing users, exercises, and workout sessions.
 
-### Backend (`/backend`)
-
-*   **Framework:** Node.js with Express.
-*   **Database:** PostgreSQL is set up and configured.
-*   **Authentication:** User authentication with JWT is implemented.
-*   **API:** Basic API endpoints for user authentication and other core features are in place, suggested by the `routes` and `models` directories.
-
-## Next Steps: Phase 2 - Exercise Engine
-
-Frontend/src/App.tsx
-
-import React from "react";
-import { Routes, Route } from "react-router-dom";
-import Home from "./components/Home";
-import Login from "./components/auth/Login";
-import Register from "./components/auth/Register";
-import ExerciseSelection from './components/ExerciseSelection';
-import Dashboard from "./components/Dashboard";
-import PrivateRoute from "./components/PrivateRoute";
-import Navbar from "./components/layout/Navbar";
-
-const App: React.FC = () => {
-  return (
-    <>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route
-          path="/exercises"
-          element={
-            <PrivateRoute>
-              <ExerciseSelection />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
-          }
-        />
-      </Routes>
-    </>
-  );
-};
-
-export default App;
-
-frontend/src/components/ExerciseSelection.tsx
-
-import React, { useState, useEffect } from "react";
-import api from "../utils/api";
-import { Link } from "react-router-dom";
-import { ExerciseCheckpoint } from "../utils/poseUtils"; // Import the interface
-
-// Interface for Exercise data matching your backend model
-interface Exercise {
-  _id: string;
-  name: string;
-  description: string;
-  targetMuscles: string[];
-  checkpoints: ExerciseCheckpoint[];
-  instructions: string[];
-  difficulty: string;
-}
-
-const ExerciseSelection: React.FC = () => {
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchExercises = async () => {
-      try {
-        const res = await api.get<Exercise[]>("/exercises"); // Fetch all exercises
-        setExercises(res.data);
-      } catch (err: any) {
-        console.error("Error fetching exercises:", err);
-        setError(err.response?.data?.message || "Failed to load exercises");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchExercises();
-  }, []);
-
-  if (loading) return <div className="p-4">Loading exercises...</div>;
-  if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
-
-  return (
-    <div className="container mt-5">
-      <h1 className="text-3xl font-bold mb-4">Select an Exercise</h1>
-      <div className="row">
-        {exercises.length === 0 ? (
-          <p>No exercises available. Please add some from the backend first.</p>
-        ) : (
-          exercises.map((exercise) => (
-            <div className="col-md-4 mb-4" key={exercise._id}>
-              <Link to={`/exercise/${exercise._id}`} className="card-link text-decoration-none text-dark">
-                <div className="card h-100">
-                  <div className="card-body">
-                    <h5 className="card-title">{exercise.name}</h5>
-                    <p className="card-text">{exercise.description}</p>
-                    <p className="card-text"><small className="text-muted">Difficulty: {exercise.difficulty}</small></p>
-                  </div>
-                </div>
-              </Link>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default ExerciseSelection;
-
-frontend/src/components/layout/Navbar.tsx
-
-
-import React from "react";
-import { Link, useNavigate } from "react-router-dom";
-
-const Navbar: React.FC = () => {
-  const navigate = useNavigate();
-  const isAuthenticated = !!localStorage.getItem("token");
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    alert("You have been logged out.");
-    navigate("/login");
-  };
-
-  return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
-      <div className="container-fluid">
-        <Link className="navbar-brand" to="/">
-          Fitness Tracker AI
-        </Link>
-        <button
-          className="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarNav"
-          aria-controls="navbarNav"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
-        <div className="collapse navbar-collapse" id="navbarNav">
-          <div className="navbar-nav ms-auto">
-            {!isAuthenticated ? (
-              <>
-                <Link className="nav-link" to="/login">
-                  Login
-                </Link>
-                <Link className="nav-link" to="/register">
-                  Register
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link className="nav-link" to="/exercises">
-                  Exercises
-                </Link>
-                <button
-                  className="btn btn-link nav-link custom-logout-btn"
-                  onClick={handleLogout}
-                >
-                  Logout
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </nav>
-  );
-};
-
-export default Navbar;
-
-I change all the front end style using Bootstrap. I remove a few redundant buttons. Check the frontend folders structure to see which files I added are new and need to provide.
-
+* Project Structure
+    1 /Users/melodylo/Desktop/Computer/fitness-tracker-ai/
+    2 ├── .DS_Store
+    3 ├── .gitignore
+    4 ├── project_status.txt
+    5 ├── README.md
+    6 ├── .git/                 # Git version control system files
+    7 ├── backend/              # Node.js/Express.js backend 
+      application
+    8 │   ├── .DS_Store
+    9 │   ├── package-lock.json
+   10 │   ├── package.json
+   11 │   ├── tsconfig.json
+   12 │   ├── node_modules/     # Backend dependencies
+   13 │   ├── routes/           # Backend API route definitions 
+      (e.g., auth, exercises)
+   14 │   └── src/              # Backend source code
+   15 │       ├── server.ts
+   16 │       ├── config/       # Configuration files (e.g., 
+      database connection)
+   17 │       │   └── database.ts
+   18 │       ├── middleware/   # Express middleware (e.g., 
+      authentication)
+   19 │       │   └── auth.ts
+   20 │       ├── models/       # Database models (e.g., User, 
+      Exercise, Session)
+   21 │       │   ├── Exercise.ts
+   22 │       │   ├── index.ts
+   23 │       │   ├── Session.ts
+   24 │       │   └── User.ts
+   25 │       └── routes/       # Backend API route 
+      implementations
+   26 │           ├── authRoutes.ts
+   27 │           ├── exercisesRoutes.ts
+   28 │           └── sessions.ts
+   29 ├── docs/                 # Project documentation
+   30 │   ├── .DS_Store
+   31 │   ├── api/
+   32 │   └── setup/
+   33 └── frontend/             # React frontend application
+   34     ├── .gitignore
+   35     ├── package-lock.json
+   36     ├── package.json
+   37     ├── README.md
+   38     ├── tsconfig.json
+   39     ├── node_modules/     # Frontend dependencies
+   40     ├── public/           # Public assets (e.g., index.html,
+      favicons)
+   41     │   ├── favicon.ico
+   42     │   ├── index.html
+   43     │   ├── logo192.png
+   44     │   ├── logo512.png
+   45     │   ├── manifest.json
+   46     │   └── robots.txt
+   47     └── src/              # Frontend source code
+   48         ├── App.css
+   49         ├── App.test.tsx
+   50         ├── App.tsx
+   51         ├── index.css
+   52         ├── index.tsx
+   53         ├── logo.svg
+   54         ├── react-app-env.d.ts
+   55         ├── reportWebVitals.ts
+   56         ├── setupTests.ts
+   57         ├── components/   # Reusable React components
+   58         │   ├── Dashboard.tsx
+   59         │   ├── ExerciseSelection.tsx
+   60         │   ├── Home.tsx
+   61         │   ├── PrivateRoute.tsx
+   62         │   ├── WorkoutPage.tsx
+   63         │   ├── WorkoutTimer.tsx
+   64         │   ├── auth/     # Authentication-related 
+      components
+   65         │   │   ├── Login.tsx
+   66         │   │   └── Register.tsx
+   67         │   └── layout/   # Layout components (e.g., Navbar)
+   68         │       └── Navbar.tsx
+   69         └── utils/        # Utility functions and API 
+      clients
+   70             ├── api.ts
+   71             └── poseUtils.ts

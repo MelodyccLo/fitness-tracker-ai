@@ -52,6 +52,17 @@ export interface ExerciseCheckpoint {
   phase: "up" | "down";
 }
 
+// NEW: Interface for Exercise (consistent with your backend model)
+export interface Exercise {
+  _id: string;
+  name: string;
+  description: string;
+  targetMuscles: string[];
+  checkpoints: ExerciseCheckpoint[];
+  instructions: string[];
+  difficulty: string;
+}
+
 // Class to manage rep detection state for a single exercise
 export class RepCounter {
   private inDownPhase: boolean = false;

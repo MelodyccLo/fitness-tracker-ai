@@ -1,3 +1,4 @@
+/Users/melodylo/Desktop/Computer/fitness-tracker-ai/frontend/src/components/WorkoutPage.tsx
 import React, {
   useRef,
   useEffect,
@@ -65,16 +66,13 @@ const WorkoutPage: React.FC = () => {
   );
 
   const [isWorkoutRunning, setIsWorkoutRunning] = useState(false);
+
   const [countdownWorkoutTime, setCountdownWorkoutTime] = useState(60); // State for 60-second countdown
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [displayReps, setDisplayReps] = useState(0);
   const [displayFeedback, setDisplayFeedback] = useState(
     "Stand still to begin."
   );
-
-  // NEW STATE: For the early exit warning message
-  const [showWarning, setShowWarning] = useState(false);
-  const [warningMessage, setWarningMessage] = useState('');
 
   const landmarkNameToIndex = useMemo(() => {
     const map: { [key: string]: number } = {
@@ -161,6 +159,7 @@ const WorkoutPage: React.FC = () => {
         let currentFrameFeedback = "";
         const jointsToHighlightRed: number[] = [];
         const connectionsToHighlightRed: [number, number][] = [];
+        // Use isWorkoutRunning state directly here
         if (repCounterRef.current && isWorkoutRunning) {
           exercise.checkpoints.forEach((checkpoint) => {
             const p1 = landmarksMap[checkpoint.keypoint1];
@@ -318,6 +317,9 @@ const WorkoutPage: React.FC = () => {
     const canvasElement = canvasElementRef.current;
     let ctx: CanvasRenderingContext2D | null = null;
 
+    let pose: Pose | null = null;
+    let frameId: number | null = null;
+
     if (
       !cameraActive ||
       !isVideoElementReady ||
@@ -362,7 +364,7 @@ const WorkoutPage: React.FC = () => {
     console.log("Canvas initial dimensions set.");
 
     console.log("Initializing Pose model.");
-    let pose: Pose | null = new Pose({
+    pose = new Pose({
       locateFile: (file) => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
       },
@@ -379,7 +381,6 @@ const WorkoutPage: React.FC = () => {
     console.log("Pose model initialized and onResults bound.");
 
     console.log("Attempting to get media stream and setup custom frame loop.");
-    let frameId: number | null = null;
     navigator.mediaDevices
       .getUserMedia({ video: { width: 1280, height: 720 } })
       .then((stream) => {
@@ -459,43 +460,31 @@ const WorkoutPage: React.FC = () => {
     };
   }, [onResults, isVideoElementReady, isCanvasElementReady, cameraActive]);
 
-  // Modified stopWorkout to accept a parameter for early exit
-  const stopWorkout = useCallback((isEarlyExit: boolean) => {
+  const stopWorkout = useCallback(() => {
     setIsWorkoutRunning(false);
     setWorkoutPhase("completed");
+
+    // Stop camera
     setCameraActive(false);
+    // Generate report
+    const report: WorkoutReportData = {
+      exerciseName: exercise?.name || "Unknown",
+      duration: workoutDuration,
+      totalReps: displayReps,
+      accuracy: 85, // Placeholder, will be calculated based on form feedback logic
+      completedAt: new Date(),
+    };
+    setWorkoutReport(report);
+    setShowReport(true);
 
-    if (isEarlyExit) {
-      // Scenario: User manually ended workout (pressed 'X')
-      setWarningMessage("Workout ended early! Your fitness test results will not be saved due to incomplete duration.");
-      setShowWarning(true);
-      // Ensure workout report is NOT shown for early exit
-      setShowReport(false);
-      setWorkoutReport(null);
-    } else {
-      // Scenario: Workout completed naturally (time ended)
-      const report: WorkoutReportData = {
-        exerciseName: exercise?.name || "Unknown",
-        duration: workoutDuration,
-        totalReps: displayReps,
-        accuracy: 85, // Placeholder, will be calculated based on form feedback logic
-        completedAt: new Date(),
-      };
-      setWorkoutReport(report);
-      setShowReport(true);
-      // Ensure warning is NOT shown for natural completion
-      setShowWarning(false);
-      setWarningMessage('');
-    }
-
-    // Clear video stream (common to both scenarios)
+    // Clear video stream
     const videoElement = videoElementRef.current;
     if (videoElement && videoElement.srcObject) {
       const stream = videoElement.srcObject as MediaStream;
       stream.getTracks().forEach((track) => track.stop());
       videoElement.srcObject = null;
     }
-  }, [exercise, workoutDuration, displayReps, setIsWorkoutRunning, setWorkoutPhase, setCameraActive, setWarningMessage, setShowWarning, setWorkoutReport, setShowReport]);
+  }, [exercise, workoutDuration, displayReps, setIsWorkoutRunning, setWorkoutPhase, setCameraActive, setWorkoutReport, setShowReport]);
 
   const handleCountdownComplete = useCallback(() => {
     setShowCountdown(false);
@@ -520,8 +509,7 @@ const WorkoutPage: React.FC = () => {
         setWorkoutDuration(seconds);
 
         if (seconds <= 0) {
-          // Pass 'false' because it's a natural completion by time
-          stopWorkout(false);
+          stopWorkout(); // Call stopWorkout only once when time runs out
         }
       }
     },
@@ -600,7 +588,7 @@ const WorkoutPage: React.FC = () => {
         </div>
       )}
 
-      {/* Control Buttons (removed the Finish Workout button from here) */}
+      {/* Control Buttons */}
       <div style={{ textAlign: "center", padding: "10px" }}>
         {workoutPhase === "idle" && (
           <button
@@ -611,38 +599,19 @@ const WorkoutPage: React.FC = () => {
             Start Workout
           </button>
         )}
+        {workoutPhase === "active" && (
+          <button
+            className="btn btn-danger btn-lg"
+            onClick={stopWorkout}
+            style={{ minWidth: "200px" }}
+          >
+            Finish Workout
+          </button>
+        )}
       </div>
 
       {/* Main Camera Area */}
       <div className="camera-container">
-        {/* 'X' Overlay Button (New) */}
-        {workoutPhase === "active" && (
-          <button
-            onClick={() => stopWorkout(true)} // Pass true for early exit
-            style={{
-              position: "absolute",
-              top: "15px",
-              left: "15px",
-              backgroundColor: "rgba(255, 0, 0, 0.7)",
-              color: "#fff",
-              border: "none",
-              borderRadius: "50%",
-              width: "50px",
-              height: "50px",
-              fontSize: "1.8rem",
-              fontWeight: "bold",
-              cursor: "pointer",
-              zIndex: 20, // Ensure it's above other overlays if needed
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
-            }}
-          >
-            &#x2715; {/* Unicode 'X' character */}
-          </button>
-        )}
-
         {/* Camera Placeholder */}
         <CameraPlaceholder
           show={showPlaceholder}
@@ -692,48 +661,7 @@ const WorkoutPage: React.FC = () => {
         />
       </div>
 
-      {/* NEW: Warning Message Overlay */}
-      {showWarning && (
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            backgroundColor: "rgba(255, 0, 0, 0.8)",
-            color: "#fff",
-            padding: "30px",
-            borderRadius: "15px",
-            fontSize: "1.8rem",
-            fontWeight: "bold",
-            textAlign: "center",
-            zIndex: 100, // Make sure it's on top
-            maxWidth: "80%",
-            boxShadow: "0 0 20px rgba(0,0,0,0.5)"
-          }}
-        >
-          <p>{warningMessage}</p>
-          <button
-            className="btn btn-light mt-3"
-            onClick={() => {
-              setShowWarning(false);
-              // Reset workout page to idle state
-              setWorkoutPhase("idle");
-              setShowPlaceholder(true);
-              setCameraActive(false);
-              setWorkoutReport(null); // Clear any old report data
-              setDisplayReps(0);
-              setDisplayFeedback("Stand still to begin.");
-              setWorkoutDuration(0);
-              setCountdownWorkoutTime(60);
-            }}
-          >
-            OK
-          </button>
-        </div>
-      )}
-
-      {/* Workout Report Modal (only shows if 'showReport' is true) */}
+      {/* Workout Report Modal */}
       <WorkoutReport
         report={workoutReport}
         onClose={() => {
