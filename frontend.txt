@@ -1,12 +1,64 @@
+// frontend/src/App.tsx
+
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import Home from "./components/Home";
+import Login from "./components/auth/Login";
+import Register from "./components/auth/Register";
+import ExerciseSelection from "./components/ExerciseSelection";
+import Dashboard from "./components/Dashboard";
+import PrivateRoute from "./components/PrivateRoute";
+import WorkoutPage from "./components/WorkoutPage";
+import Navbar from "./components/layout/Navbar";
+
+const App: React.FC = () => {
+  return (
+    <>
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route
+          path="/exercises"
+          element={
+            <PrivateRoute>
+              <ExerciseSelection />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/exercise/:id"
+          element={
+            <PrivateRoute>
+              <WorkoutPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <Dashboard />
+            </PrivateRoute>
+          }
+        />
+      </Routes>
+    </>
+  );
+};
+
+export default App;
+
+
 // frontend/src/components/layout/Navbar.tsx
 
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { isAuthenticated } from "../../utils/authUtils"; // NEW: Import isAuthenticated utility
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const isUserAuthenticated = isAuthenticated(); // UPDATED: Use the utility function for consistency
+  const isAuthenticated = !!localStorage.getItem("token");
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -33,7 +85,7 @@ const Navbar: React.FC = () => {
         </button>
         <div className="collapse navbar-collapse" id="navbarNav">
           <div className="navbar-nav ms-auto">
-            {!isUserAuthenticated ? (
+            {!isAuthenticated ? (
               <>
                 <Link className="nav-link" to="/login">
                   Login
@@ -46,11 +98,6 @@ const Navbar: React.FC = () => {
               <>
                 <Link className="nav-link" to="/exercises">
                   Exercises
-                </Link>
-                <Link className="nav-link" to="/dashboard">
-                  {" "}
-                  {/* Keep link to /dashboard */}
-                  Dashboard
                 </Link>
                 <button
                   className="btn btn-link nav-link custom-logout-btn"

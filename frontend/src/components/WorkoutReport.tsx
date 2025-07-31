@@ -22,15 +22,6 @@ const WorkoutReport: React.FC<WorkoutReportProps> = ({
 }) => {
   if (!show || !report) return null;
 
-  // You can optionally format duration if you decide to display it later
-  const formatTime = (totalSeconds: number): string => {
-    const minutes = Math.floor(totalSeconds / 60);
-    const remainingSeconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
-      .toString()
-      .padStart(2, "0")}`;
-  };
-
   return (
     <div
       style={{

@@ -41,6 +41,14 @@ const App: React.FC = () => {
             </PrivateRoute>
           }
         />
+        <Route
+          path="*"
+          element={
+            <PrivateRoute>
+              <ExerciseSelection />
+            </PrivateRoute>
+          }
+        />
       </Routes>
     </>
   );
