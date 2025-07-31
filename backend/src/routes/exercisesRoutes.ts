@@ -57,12 +57,13 @@ router.post("/", async (req: Request, res: Response) => {
 
   try {
     const newExercise = await Exercise.create({
-      name,
-      description,
-      targetMuscles,
-      checkpoints,
-      instructions,
-      difficulty,
+        name,
+        description,
+        targetMuscles,
+        checkpoints,
+        instructions,
+        difficulty,
+        tiers: []
     });
     res.status(201).json(newExercise);
   } catch (error: any) {

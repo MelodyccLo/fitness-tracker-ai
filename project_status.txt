@@ -29,10 +29,14 @@ Fitness Tracker AI - Current Capabilities Report
          description, and difficulty, and links to a dedicated workout
          page.
        * Workout Page (WorkoutPage.tsx): This is the core page for
-         performing exercises. It is designed to integrate with MediaPipe
+         performing exercises, styled with WorkoutPage.css. It is designed to integrate with MediaPipe
          for real-time pose detection during workouts.
-       * Workout Timer (WorkoutTimer.tsx): A dedicated component to manage
-          and display the duration of workouts.
+   * UI/UX Components for Workout:
+       * TimerOverlay.tsx: A component to display a timer during the workout.
+       * CountdownOverlay.tsx: Displays a countdown before the exercise starts.
+       * ExerciseInfoOverlay.tsx: Shows information about the current exercise.
+       * WorkoutReport.tsx: Displays a summary after the workout is complete.
+       * CameraPlaceholder.tsx: A placeholder for the camera feed used in pose detection.
    * Pose Detection:
        * MediaPipe Integration: The frontend has integrated MediaPipe for
          advanced pose detection capabilities, crucial for tracking
@@ -79,30 +83,30 @@ Fitness Tracker AI - Current Capabilities Report
     4 ├── project_status.txt
     5 ├── README.md
     6 ├── .git/                 # Git version control system files
-    7 ├── backend/              # Node.js/Express.js backend 
+    7 ├── backend/              # Node.js/Express.js backend
       application
     8 │   ├── .DS_Store
     9 │   ├── package-lock.json
    10 │   ├── package.json
    11 │   ├── tsconfig.json
    12 │   ├── node_modules/     # Backend dependencies
-   13 │   ├── routes/           # Backend API route definitions 
+   13 │   ├── routes/           # Backend API route definitions
       (e.g., auth, exercises)
    14 │   └── src/              # Backend source code
    15 │       ├── server.ts
-   16 │       ├── config/       # Configuration files (e.g., 
+   16 │       ├── config/       # Configuration files (e.g.,
       database connection)
    17 │       │   └── database.ts
-   18 │       ├── middleware/   # Express middleware (e.g., 
+   18 │       ├── middleware/   # Express middleware (e.g.,
       authentication)
    19 │       │   └── auth.ts
-   20 │       ├── models/       # Database models (e.g., User, 
+   20 │       ├── models/       # Database models (e.g., User,
       Exercise, Session)
    21 │       │   ├── Exercise.ts
    22 │       │   ├── index.ts
    23 │       │   ├── Session.ts
    24 │       │   └── User.ts
-   25 │       └── routes/       # Backend API route 
+   25 │       └── routes/       # Backend API route
       implementations
    26 │           ├── authRoutes.ts
    27 │           ├── exercisesRoutes.ts
@@ -136,20 +140,25 @@ Fitness Tracker AI - Current Capabilities Report
    54         ├── react-app-env.d.ts
    55         ├── reportWebVitals.ts
    56         ├── setupTests.ts
-   57         ├── components/   # Reusable React components
-   58         │   ├── Dashboard.tsx
-   59         │   ├── ExerciseSelection.tsx
-   60         │   ├── Home.tsx
-   61         │   ├── PrivateRoute.tsx
-   62         │   ├── WorkoutPage.tsx
-   63         │   ├── WorkoutTimer.tsx
-   64         │   ├── auth/     # Authentication-related 
+   57         ├── WorkoutPage.css
+   58         ├── components/   # Reusable React components
+   59         │   ├── CameraPlaceholder.tsx
+   60         │   ├── CountdownOverlay.tsx
+   61         │   ├── Dashboard.tsx
+   62         │   ├── ExerciseInfoOverlay.tsx
+   63         │   ├── ExerciseSelection.tsx
+   64         │   ├── Home.tsx
+   65         │   ├── PrivateRoute.tsx
+   66         │   ├── TimerOverlay.tsx
+   67         │   ├── WorkoutPage.tsx
+   68         │   ├── WorkoutReport.tsx
+   69         │   ├── auth/     # Authentication-related
       components
-   65         │   │   ├── Login.tsx
-   66         │   │   └── Register.tsx
-   67         │   └── layout/   # Layout components (e.g., Navbar)
-   68         │       └── Navbar.tsx
-   69         └── utils/        # Utility functions and API 
+   70         │   │   ├── Login.tsx
+   71         │   │   └── Register.tsx
+   72         │   └── layout/   # Layout components (e.g., Navbar)
+   73         │       └── Navbar.tsx
+   74         └── utils/        # Utility functions and API
       clients
-   70             ├── api.ts
-   71             └── poseUtils.ts
+   75             ├── api.ts
+   76             └── poseUtils.ts

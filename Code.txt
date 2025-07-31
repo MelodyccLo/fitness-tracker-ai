@@ -1,4 +1,342 @@
-/Users/melodylo/Desktop/Computer/fitness-tracker-ai/frontend/src/components/WorkoutPage.tsx
+--- /Users/melodylo/Desktop/Computer/fitness-tracker-ai/frontend/src/WorkoutPage.css ---
+
+.camera-container {
+  position: relative; /* Ensure overlays position correctly */
+  width: min(90vw, 1200px); /* Responsive width, max 1200px */
+  height: min(56.25vw, 675px); /* Maintain 16:9 aspect ratio (56.25% of width = 9/16) */
+  max-height: 80vh; /* Keep as you have it, or adjust if needed */
+  margin: 10px auto;
+  border: 2px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  animation: fadeIn 0.5s ease-in;
+}
+
+.camera-container video,
+.camera-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover; /* Ensures the video/canvas covers the container */
+  position: absolute; /* Allows overlays to sit on top */
+  top: 0;
+  left: 0;
+}
+
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1); /* Starting size */
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1); /* Slightly larger */
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1); /* Back to starting size */
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Add to WorkoutPage.css if you prefer to externalize the style */
+.stop-test-button {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 15;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+  line-height: 1;
+  background: rgba(255, 0, 0, 0.7); /* Red background for stop button */
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+--- /Users/melodylo/Desktop/Computer/fitness-tracker-ai/frontend/src/components/CameraPlaceholder.tsx ---
+
+import React from "react";
+import { Exercise } from "../utils/poseUtils"; // Still import Exercise interface for prop typing
+
+interface CameraPlaceholderProps {
+  show: boolean;
+  onStart: () => void;
+  exercise: Exercise | null; // Keep for consistency of prop passing, even if not displayed
+  cameraError: string | null;
+}
+
+const CameraPlaceholder: React.FC<CameraPlaceholderProps> = ({
+  show,
+  onStart,
+  exercise, // Keep exercise prop, just don't display it directly here
+  cameraError,
+}) => {
+  if (!show) return null;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "#1a1a1a",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 5,
+        color: "#fff",
+        padding: "20px",
+        textAlign: "center",
+      }}
+    >
+      <div style={{ textAlign: "center", color: "#fff" }}>
+        <h3>Ready to start your workout?</h3>
+        <p>Press Start to activate camera and begin.</p>
+        {cameraError && (
+          <p style={{ color: "red", marginTop: "10px" }}>
+            <strong>Camera Error:</strong> {cameraError}
+          </p>
+        )}
+        {/* Removed redundant exercise name and description here.
+            This information is already displayed in the main header
+            when workoutPhase is 'idle'.
+        <div style={{ marginTop: "20px" }}>
+            <strong>{exercise?.name}</strong>
+            <p>{exercise?.description}</p>
+        </div>
+        */}
+      </div>
+    </div>
+  );
+};
+
+export default CameraPlaceholder;
+
+--- /Users/melodylo/Desktop/Computer/fitness-tracker-ai/frontend/src/components/CountdownOverlay.tsx ---
+
+import React, { useEffect } from "react";
+
+interface CountdownOverlayProps {
+  value: number;
+  onComplete: () => void;
+  show: boolean;
+}
+
+const CountdownOverlay: React.FC<CountdownOverlayProps> = ({
+  value,
+  onComplete,
+  show,
+}) => {
+  // Removed the useEffect that decremented value here.
+  // The value is now controlled by the parent (WorkoutPage).
+
+  // The onComplete logic still belongs here, triggered when value becomes 0 or less.
+  useEffect(() => {
+    if (!show) return;
+    if (value <= 0) {
+      onComplete();
+    }
+  }, [value, show, onComplete]);
+
+  if (!show) return null;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        fontSize: "8rem", // Bigger font size as per guide
+        fontWeight: "bold",
+        color: "#fff",
+        textShadow: "2px 2px 4px rgba(0,0,0,0.8)",
+        zIndex: 10,
+        animation: "pulse 1s ease-in-out infinite", // Apply pulse animation
+      }}
+    >
+      {value > 0 ? value : "GO!"}
+    </div>
+  );
+};
+
+export default CountdownOverlay;
+
+--- /Users/melodylo/Desktop/Computer/fitness-tracker-ai/frontend/src/components/ExerciseInfoOverlay.tsx ---
+
+import React from "react";
+
+interface ExerciseInfoOverlayProps {
+  reps: number;
+  feedback: string;
+  show: boolean;
+}
+
+const ExerciseInfoOverlay: React.FC<ExerciseInfoOverlayProps> = ({
+  reps,
+  feedback,
+  show,
+}) => {
+  if (!show) return null;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom: "20px",
+        left: "20px",
+        right: "20px",
+        backgroundColor: "rgba(0,0,0,0.8)",
+        color: "#fff",
+        padding: "15px",
+        borderRadius: "10px",
+        zIndex: 10,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div>
+          <h4 style={{ margin: 0, color: "#28a745" }}>Reps: {reps}</h4>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <p style={{ margin: 0, fontSize: "0.9rem" }}>{feedback}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ExerciseInfoOverlay;
+
+--- /Users/melodylo/Desktop/Computer/fitness-tracker-ai/frontend/src/components/TimerOverlay.tsx ---
+
+import React, { useState, useEffect, useRef } from 'react';
+
+interface TimerOverlayProps {
+  isRunning: boolean;
+  seconds: number; // This will now be the initial value for countdown
+  show: boolean;
+  onTimeUpdate?: (seconds: number) => void;
+  isCountdown?: boolean; // NEW PROP: true if it's a countdown, false/undefined if count up
+}
+
+const TimerOverlay: React.FC<TimerOverlayProps> = ({ isRunning, seconds: initialSeconds, show, onTimeUpdate, isCountdown = false }) => {
+  const [currentSeconds, setCurrentSeconds] = useState(initialSeconds);
+  const intervalIdRef = useRef<number | null>(null);
+
+  // Sync internal state with prop for initial value or resets from parent
+  useEffect(() => {
+    setCurrentSeconds(initialSeconds);
+  }, [initialSeconds]);
+
+  useEffect(() => {
+    const cleanupInterval = () => {
+      if (intervalIdRef.current !== null) {
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+      }
+    };
+
+    if (isRunning) {
+      cleanupInterval(); // Clear any existing interval
+      intervalIdRef.current = window.setInterval(() => {
+        setCurrentSeconds(prevSeconds => {
+          if (isCountdown) {
+            // Counting down
+            if (prevSeconds <= 0) {
+              cleanupInterval(); // Stop at 0
+              return 0;
+            }
+            return prevSeconds - 1;
+          } else {
+            // Counting up
+            return prevSeconds + 1;
+          }
+        });
+      }, 1000);
+    } else {
+      cleanupInterval(); // Stop the interval if not running
+    }
+
+    return cleanupInterval; // Cleanup on unmount or isRunning change
+  }, [isRunning, isCountdown]);
+
+  // Communicate internal seconds back to parent
+  useEffect(() => {
+    if (onTimeUpdate) {
+      onTimeUpdate(currentSeconds);
+    }
+  }, [currentSeconds, onTimeUpdate]);
+
+  const formatTime = (totalSeconds: number): string => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const remainingSeconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  if (!show) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: "20px",
+        right: "20px",
+        backgroundColor: "rgba(0,0,0,0.7)",
+        color: "#fff",
+        padding: "10px 20px",
+        borderRadius: "25px",
+        fontSize: "1.5rem",
+        fontWeight: "bold",
+        zIndex: 10,
+        fontFamily: "monospace",
+      }}
+    >
+      {formatTime(currentSeconds)}
+    </div>
+  );
+};
+
+export default TimerOverlay;
+
+
+--- /Users/melodylo/Desktop/Computer/fitness-tracker-ai/frontend/src/components/WorkoutPage.tsx ---
+
 import React, {
   useRef,
   useEffect,
@@ -66,13 +404,16 @@ const WorkoutPage: React.FC = () => {
   );
 
   const [isWorkoutRunning, setIsWorkoutRunning] = useState(false);
-
   const [countdownWorkoutTime, setCountdownWorkoutTime] = useState(60); // State for 60-second countdown
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [displayReps, setDisplayReps] = useState(0);
   const [displayFeedback, setDisplayFeedback] = useState(
     "Stand still to begin."
   );
+
+  // NEW STATE: For the early exit warning message
+  const [showWarning, setShowWarning] = useState(false);
+  const [warningMessage, setWarningMessage] = useState('');
 
   const landmarkNameToIndex = useMemo(() => {
     const map: { [key: string]: number } = {
@@ -159,7 +500,6 @@ const WorkoutPage: React.FC = () => {
         let currentFrameFeedback = "";
         const jointsToHighlightRed: number[] = [];
         const connectionsToHighlightRed: [number, number][] = [];
-        // Use isWorkoutRunning state directly here
         if (repCounterRef.current && isWorkoutRunning) {
           exercise.checkpoints.forEach((checkpoint) => {
             const p1 = landmarksMap[checkpoint.keypoint1];
@@ -317,9 +657,6 @@ const WorkoutPage: React.FC = () => {
     const canvasElement = canvasElementRef.current;
     let ctx: CanvasRenderingContext2D | null = null;
 
-    let pose: Pose | null = null;
-    let frameId: number | null = null;
-
     if (
       !cameraActive ||
       !isVideoElementReady ||
@@ -364,7 +701,7 @@ const WorkoutPage: React.FC = () => {
     console.log("Canvas initial dimensions set.");
 
     console.log("Initializing Pose model.");
-    pose = new Pose({
+    let pose: Pose | null = new Pose({
       locateFile: (file) => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
       },
@@ -381,6 +718,7 @@ const WorkoutPage: React.FC = () => {
     console.log("Pose model initialized and onResults bound.");
 
     console.log("Attempting to get media stream and setup custom frame loop.");
+    let frameId: number | null = null;
     navigator.mediaDevices
       .getUserMedia({ video: { width: 1280, height: 720 } })
       .then((stream) => {
@@ -460,31 +798,43 @@ const WorkoutPage: React.FC = () => {
     };
   }, [onResults, isVideoElementReady, isCanvasElementReady, cameraActive]);
 
-  const stopWorkout = useCallback(() => {
+  // Modified stopWorkout to accept a parameter for early exit
+  const stopWorkout = useCallback((isEarlyExit: boolean) => {
     setIsWorkoutRunning(false);
     setWorkoutPhase("completed");
-
-    // Stop camera
     setCameraActive(false);
-    // Generate report
-    const report: WorkoutReportData = {
-      exerciseName: exercise?.name || "Unknown",
-      duration: workoutDuration,
-      totalReps: displayReps,
-      accuracy: 85, // Placeholder, will be calculated based on form feedback logic
-      completedAt: new Date(),
-    };
-    setWorkoutReport(report);
-    setShowReport(true);
 
-    // Clear video stream
+    if (isEarlyExit) {
+      // Scenario: User manually ended workout (pressed 'X')
+      setWarningMessage("Workout ended early! Your fitness test results will not be saved due to incomplete duration.");
+      setShowWarning(true);
+      // Ensure workout report is NOT shown for early exit
+      setShowReport(false);
+      setWorkoutReport(null);
+    } else {
+      // Scenario: Workout completed naturally (time ended)
+      const report: WorkoutReportData = {
+        exerciseName: exercise?.name || "Unknown",
+        duration: workoutDuration,
+        totalReps: displayReps,
+        accuracy: 85, // Placeholder, will be calculated based on form feedback logic
+        completedAt: new Date(),
+      };
+      setWorkoutReport(report);
+      setShowReport(true);
+      // Ensure warning is NOT shown for natural completion
+      setShowWarning(false);
+      setWarningMessage('');
+    }
+
+    // Clear video stream (common to both scenarios)
     const videoElement = videoElementRef.current;
     if (videoElement && videoElement.srcObject) {
       const stream = videoElement.srcObject as MediaStream;
       stream.getTracks().forEach((track) => track.stop());
       videoElement.srcObject = null;
     }
-  }, [exercise, workoutDuration, displayReps, setIsWorkoutRunning, setWorkoutPhase, setCameraActive, setWorkoutReport, setShowReport]);
+  }, [exercise, workoutDuration, displayReps, setIsWorkoutRunning, setWorkoutPhase, setCameraActive, setWarningMessage, setShowWarning, setWorkoutReport, setShowReport]);
 
   const handleCountdownComplete = useCallback(() => {
     setShowCountdown(false);
@@ -509,7 +859,8 @@ const WorkoutPage: React.FC = () => {
         setWorkoutDuration(seconds);
 
         if (seconds <= 0) {
-          stopWorkout(); // Call stopWorkout only once when time runs out
+          // Pass 'false' because it's a natural completion by time
+          stopWorkout(false);
         }
       }
     },
@@ -588,7 +939,7 @@ const WorkoutPage: React.FC = () => {
         </div>
       )}
 
-      {/* Control Buttons */}
+      {/* Control Buttons (removed the Finish Workout button from here) */}
       <div style={{ textAlign: "center", padding: "10px" }}>
         {workoutPhase === "idle" && (
           <button
@@ -599,19 +950,38 @@ const WorkoutPage: React.FC = () => {
             Start Workout
           </button>
         )}
-        {workoutPhase === "active" && (
-          <button
-            className="btn btn-danger btn-lg"
-            onClick={stopWorkout}
-            style={{ minWidth: "200px" }}
-          >
-            Finish Workout
-          </button>
-        )}
       </div>
 
       {/* Main Camera Area */}
       <div className="camera-container">
+        {/* 'X' Overlay Button (New) */}
+        {workoutPhase === "active" && (
+          <button
+            onClick={() => stopWorkout(true)} // Pass true for early exit
+            style={{
+              position: "absolute",
+              top: "15px",
+              left: "15px",
+              backgroundColor: "rgba(255, 0, 0, 0.7)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "50%",
+              width: "50px",
+              height: "50px",
+              fontSize: "1.8rem",
+              fontWeight: "bold",
+              cursor: "pointer",
+              zIndex: 20, // Ensure it's above other overlays if needed
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
+            }}
+          >
+            &#x2715; {/* Unicode 'X' character */}
+          </button>
+        )}
+
         {/* Camera Placeholder */}
         <CameraPlaceholder
           show={showPlaceholder}
@@ -661,7 +1031,48 @@ const WorkoutPage: React.FC = () => {
         />
       </div>
 
-      {/* Workout Report Modal */}
+      {/* NEW: Warning Message Overlay */}
+      {showWarning && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor: "rgba(255, 0, 0, 0.8)",
+            color: "#fff",
+            padding: "30px",
+            borderRadius: "15px",
+            fontSize: "1.8rem",
+            fontWeight: "bold",
+            textAlign: "center",
+            zIndex: 100, // Make sure it's on top
+            maxWidth: "80%",
+            boxShadow: "0 0 20px rgba(0,0,0,0.5)"
+          }}
+        >
+          <p>{warningMessage}</p>
+          <button
+            className="btn btn-light mt-3"
+            onClick={() => {
+              setShowWarning(false);
+              // Reset workout page to idle state
+              setWorkoutPhase("idle");
+              setShowPlaceholder(true);
+              setCameraActive(false);
+              setWorkoutReport(null); // Clear any old report data
+              setDisplayReps(0);
+              setDisplayFeedback("Stand still to begin.");
+              setWorkoutDuration(0);
+              setCountdownWorkoutTime(60);
+            }}
+          >
+            OK
+          </button>
+        </div>
+      )}
+
+      {/* Workout Report Modal (only shows if 'showReport' is true) */}
       <WorkoutReport
         report={workoutReport}
         onClose={() => {
@@ -682,3 +1093,257 @@ const WorkoutPage: React.FC = () => {
 };
 
 export default WorkoutPage;
+
+--- /Users/melodylo/Desktop/Computer/fitness-tracker-ai/frontend/src/components/WorkoutReport.tsx ---
+
+import React from "react";
+
+interface WorkoutReportData {
+  exerciseName: string;
+  duration: number; // Still part of the data, but won't be displayed
+  totalReps: number;
+  accuracy: number;
+  completedAt: Date;
+}
+
+interface WorkoutReportProps {
+  report: WorkoutReportData | null;
+  onClose: () => void;
+  show: boolean;
+}
+
+const WorkoutReport: React.FC<WorkoutReportProps> = ({
+  report,
+  onClose,
+  show,
+}) => {
+  if (!show || !report) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "100%",
+        backgroundColor: "rgba(0,0,0,0.8)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 20,
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "#fff",
+          padding: "40px",
+          borderRadius: "12px",
+          textAlign: "center",
+          maxWidth: "500px",
+          width: "90%",
+        }}
+      >
+        <h2 style={{ color: "#28a745", marginBottom: "30px" }}>
+          Workout Complete!
+        </h2>
+        <div style={{ marginBottom: "30px" }}>
+          <h3>{report.exerciseName}</h3>
+          <div
+            style={{
+              display: "grid",
+              // Changed from "1fr 1fr" to "1fr" to have a single column
+              gridTemplateColumns: "1fr",
+              gap: "20px",
+              marginTop: "20px",
+            }}
+          >
+            {/* Removed the Duration display section */}
+            {/*
+            <div>
+              <h4 style={{ color: "#007bff" }}>Duration</h4>
+              <p style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
+                {formatTime(report.duration)}
+              </p>
+            </div>
+            */}
+            <div>
+              <h4 style={{ color: "#007bff" }}>Reps Completed</h4>
+              <p style={{ fontSize: "1.5rem", fontWeight: "bold" }}>
+                {report.totalReps}
+              </p>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            backgroundColor: "#007bff",
+            color: "#fff",
+            border: "none",
+            padding: "12px 30px",
+            borderRadius: "6px",
+            fontSize: "1.1rem",
+            cursor: "pointer",
+            marginRight: "10px",
+          }}
+        >
+          Start New Workout
+        </button>
+        <button
+          onClick={() => window.history.back()}
+          style={{
+            backgroundColor: "#6c757d",
+            color: "#fff",
+            border: "none",
+            padding: "12px 30px",
+            borderRadius: "6px",
+            fontSize: "1.1rem",
+            cursor: "pointer",
+          }}
+        >
+          Back to Exercises
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default WorkoutReport;
+
+
+--- /Users/melodylo/Desktop/Computer/fitness-tracker-ai/frontend/src/utils/poseUtils.ts ---
+
+// Define a type for MediaPipe Landmark points
+export interface Landmark {
+  x: number;
+  y: number;
+  z: number;
+  visibility?: number;
+}
+
+/**
+ * Calculates the angle (in degrees) between three 2D points.
+ * Point2 is the vertex of the angle.
+ */
+export function calculateAngle(
+  point1: Landmark,
+  point2: Landmark,
+  point3: Landmark
+): number {
+  // Vectors from point2 to point1 and point2 to point3
+  const vector1 = [point1.x - point2.x, point1.y - point2.y];
+  const vector2 = [point3.x - point2.x, point3.y - point2.y];
+
+  // Calculate dot product
+  const dotProduct = vector1[0] * vector2[0] + vector1[1] * vector2[1];
+
+  // Calculate magnitudes
+  const magnitude1 = Math.sqrt(vector1[0] ** 2 + vector1[1] ** 2);
+  const magnitude2 = Math.sqrt(vector2[0] ** 2 + vector2[1] ** 2);
+
+  // Avoid division by zero
+  if (magnitude1 === 0 || magnitude2 === 0) {
+    return 0; // Or handle as an error/invalid case
+  }
+
+  // Calculate angle in radians using arccosine
+  // Clamp the argument to acos to prevent NaN due to floating point inaccuracies
+  const cosAngle = dotProduct / (magnitude1 * magnitude2);
+  const angleRad = Math.acos(Math.min(1, Math.max(-1, cosAngle)));
+
+  // Convert to degrees
+  const angleDeg = angleRad * (180 / Math.PI);
+
+  return angleDeg;
+}
+
+// Interface for an exercise checkpoint (as defined in your backend Exercise model)
+export interface ExerciseCheckpoint {
+  keypoint1: string;
+  keypoint2: string;
+  keypoint3: string;
+  targetAngle: number;
+  tolerance: number;
+  phase: "up" | "down";
+}
+
+// NEW: Interface for Exercise (consistent with your backend model)
+export interface Exercise {
+  _id: string;
+  name: string;
+  description: string;
+  targetMuscles: string[];
+  checkpoints: ExerciseCheckpoint[];
+  instructions: string[];
+  difficulty: string;
+}
+
+// Class to manage rep detection state for a single exercise
+export class RepCounter {
+  private inDownPhase: boolean = false;
+  private inUpPhase: boolean = false;
+  private repCount: number = 0;
+  private currentCheckpoints: ExerciseCheckpoint[] = [];
+
+  constructor(checkpoints: ExerciseCheckpoint[]) {
+    this.currentCheckpoints = checkpoints;
+  }
+
+  public reset() {
+    this.inDownPhase = false;
+    this.inUpPhase = false;
+    this.repCount = 0;
+  }
+
+  public getRepCount(): number {
+    return this.repCount;
+  }
+
+  /**
+   * Processes a new frame's pose data to detect reps.
+   * Call this for each relevant checkpoint.
+   * @returns The current rep count after processing this frame.
+   */
+  public detectRep(keypoints: { [key: string]: Landmark }): number {
+    let allDownCheckpointsMet = true;
+    let allUpCheckpointsMet = true;
+
+    // Check each checkpoint for the current phase
+    this.currentCheckpoints.forEach((checkpoint) => {
+      const p1 = keypoints[checkpoint.keypoint1];
+      const p2 = keypoints[checkpoint.keypoint2];
+      const p3 = keypoints[checkpoint.keypoint3];
+
+      if (!p1 || !p2 || !p3) {
+        // Cannot calculate angle if keypoints are missing
+        if (checkpoint.phase === "down") allDownCheckpointsMet = false;
+        if (checkpoint.phase === "up") allUpCheckpointsMet = false;
+        return;
+      }
+
+      const currentAngle = calculateAngle(p1, p2, p3);
+      const isInRange =
+        Math.abs(currentAngle - checkpoint.targetAngle) <= checkpoint.tolerance;
+
+      if (checkpoint.phase === "down" && !isInRange) {
+        allDownCheckpointsMet = false;
+      }
+      if (checkpoint.phase === "up" && !isInRange) {
+        allUpCheckpointsMet = false;
+      }
+    });
+
+    // Rep detection logic
+    if (allDownCheckpointsMet && !this.inDownPhase) {
+      this.inDownPhase = true;
+      this.inUpPhase = false; // Reset up phase as we are now in down
+    } else if (allUpCheckpointsMet && this.inDownPhase && !this.inUpPhase) {
+      this.inUpPhase = true;
+      this.repCount++;
+      this.inDownPhase = false; // Reset down phase as we just completed a rep
+    }
+
+    return this.repCount;
+  }
+}

@@ -13,8 +13,10 @@ import {
   calculateAngle,
   RepCounter,
   Exercise,
+  getTierInfo,
 } from "../utils/poseUtils";
 import api from "../utils/api";
+import { getUserIdFromToken } from "../utils/authUtils"; // NEW: Import the utility
 
 // Import new components
 import CountdownOverlay from "./CountdownOverlay";
@@ -32,6 +34,7 @@ interface WorkoutReportData {
   totalReps: number;
   accuracy: number;
   completedAt: Date;
+  tierName: string;
 }
 
 const WorkoutPage: React.FC = () => {
@@ -50,10 +53,8 @@ const WorkoutPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
-  // New state variables for workout flow and UI
   const [workoutPhase, setWorkoutPhase] = useState<
-    "idle" |
-    "countdown" | "active" | "completed"
+    "idle" | "countdown" | "active" | "completed"
   >("idle");
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdownValue, setCountdownValue] = useState(3);
@@ -65,16 +66,17 @@ const WorkoutPage: React.FC = () => {
   );
 
   const [isWorkoutRunning, setIsWorkoutRunning] = useState(false);
-  const [countdownWorkoutTime, setCountdownWorkoutTime] = useState(60); // State for 60-second countdown
+  const [countdownWorkoutTime, setCountdownWorkoutTime] = useState(60);
   const [workoutDuration, setWorkoutDuration] = useState(0);
   const [displayReps, setDisplayReps] = useState(0);
   const [displayFeedback, setDisplayFeedback] = useState(
     "Stand still to begin."
   );
-
-  // NEW STATE: For the early exit warning message
   const [showWarning, setShowWarning] = useState(false);
-  const [warningMessage, setWarningMessage] = useState('');
+  const [warningMessage, setWarningMessage] = useState("");
+
+  const [currentTierName, setCurrentTierName] = useState<string>("");
+  const [tierProgress, setTierProgress] = useState<number>(0);
 
   const landmarkNameToIndex = useMemo(() => {
     const map: { [key: string]: number } = {
@@ -94,12 +96,9 @@ const WorkoutPage: React.FC = () => {
     return map;
   }, []);
 
-  // --- onResults Callback ---
   const onResults = useCallback(
     (results: Results) => {
-      // Only process results if workout is active
       if (workoutPhase !== "active" || !exercise) {
-        // Clear canvas if not active but MediaPipe might still be sending frames
         const canvasCtx = contextRef.current;
         const canvas = canvasElementRef.current;
         if (canvasCtx && canvas) {
@@ -123,10 +122,11 @@ const WorkoutPage: React.FC = () => {
       if (canvas.width !== imageWidth || canvas.height !== imageHeight) {
         canvas.width = imageWidth;
         canvas.height = imageHeight;
-        console.log(`Canvas resized to match image: ${imageWidth}x${imageHeight}`);
+        console.log(
+          `Canvas resized to match image: ${imageWidth}x${imageHeight}`
+        );
       }
-      
-      // It's crucial to draw the video image onto the canvas here
+
       canvasCtx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
       if (results.poseLandmarks) {
         const mpLandmarks = results.poseLandmarks;
@@ -253,6 +253,15 @@ const WorkoutPage: React.FC = () => {
           } else {
             setDisplayFeedback("Adjust your position.");
           }
+
+          if (exercise.tiers && exercise.tiers.length > 0) {
+            const tierInfo = getTierInfo(
+              currentRepsRef.current,
+              exercise.tiers
+            );
+            setCurrentTierName(tierInfo.currentTierName);
+            setTierProgress(tierInfo.progressInTier);
+          }
         }
 
         // --- Drawing Logic ---
@@ -285,7 +294,6 @@ const WorkoutPage: React.FC = () => {
     [workoutPhase, exercise, landmarkNameToIndex, isWorkoutRunning]
   );
 
-  // --- useEffect to fetch Exercise details ---
   useEffect(() => {
     const fetchExercise = async () => {
       try {
@@ -310,7 +318,6 @@ const WorkoutPage: React.FC = () => {
     }
   }, [exerciseId]);
 
-  // --- Unified useEffect for MediaPipe, Camera Setup, and Canvas Context ---
   useEffect(() => {
     console.log("Unified MediaPipe & Camera Setup useEffect: Running.");
 
@@ -377,7 +384,6 @@ const WorkoutPage: React.FC = () => {
     });
     pose.onResults(onResults);
     console.log("Pose model initialized and onResults bound.");
-
     console.log("Attempting to get media stream and setup custom frame loop.");
     let frameId: number | null = null;
     navigator.mediaDevices
@@ -459,43 +465,88 @@ const WorkoutPage: React.FC = () => {
     };
   }, [onResults, isVideoElementReady, isCanvasElementReady, cameraActive]);
 
-  // Modified stopWorkout to accept a parameter for early exit
-  const stopWorkout = useCallback((isEarlyExit: boolean) => {
-    setIsWorkoutRunning(false);
-    setWorkoutPhase("completed");
-    setCameraActive(false);
+  const stopWorkout = useCallback(
+    async (isEarlyExit: boolean) => {
+      setIsWorkoutRunning(false);
+      setWorkoutPhase("completed");
+      setCameraActive(false);
 
-    if (isEarlyExit) {
-      // Scenario: User manually ended workout (pressed 'X')
-      setWarningMessage("Workout ended early! Your fitness test results will not be saved due to incomplete duration.");
-      setShowWarning(true);
-      // Ensure workout report is NOT shown for early exit
-      setShowReport(false);
-      setWorkoutReport(null);
-    } else {
-      // Scenario: Workout completed naturally (time ended)
-      const report: WorkoutReportData = {
-        exerciseName: exercise?.name || "Unknown",
-        duration: workoutDuration,
-        totalReps: displayReps,
-        accuracy: 85, // Placeholder, will be calculated based on form feedback logic
-        completedAt: new Date(),
-      };
-      setWorkoutReport(report);
-      setShowReport(true);
-      // Ensure warning is NOT shown for natural completion
-      setShowWarning(false);
-      setWarningMessage('');
-    }
+      const videoElement = videoElementRef.current;
+      if (videoElement && videoElement.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+        videoElement.srcObject = null;
+      }
 
-    // Clear video stream (common to both scenarios)
-    const videoElement = videoElementRef.current;
-    if (videoElement && videoElement.srcObject) {
-      const stream = videoElement.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
-      videoElement.srcObject = null;
-    }
-  }, [exercise, workoutDuration, displayReps, setIsWorkoutRunning, setWorkoutPhase, setCameraActive, setWarningMessage, setShowWarning, setWorkoutReport, setShowReport]);
+      if (isEarlyExit) {
+        setWarningMessage(
+          "Workout ended early! Your fitness test results will not be saved due to incomplete duration."
+        );
+        setShowWarning(true);
+        setShowReport(false);
+        setWorkoutReport(null);
+      } else {
+        const report: WorkoutReportData = {
+          exerciseName: exercise?.name || "Unknown",
+          duration: workoutDuration,
+          totalReps: displayReps,
+          accuracy: 0,
+          completedAt: new Date(),
+          tierName: currentTierName,
+        };
+        setWorkoutReport(report);
+        setShowReport(true);
+        setShowWarning(false);
+        setWarningMessage("");
+
+        if (exercise && exerciseId) {
+          const userId = getUserIdFromToken(); // Get user ID from utility
+
+          // --- NEW CONSOLE LOGS START ---
+          console.log("Attempting to save workout session.");
+          console.log("Retrieved userId:", userId);
+          console.log("Exercise ID:", exerciseId);
+          // --- NEW CONSOLE LOGS END ---
+
+          if (!userId) {
+            console.error(
+              "User not authenticated. Cannot save workout session."
+            );
+            // Optionally, redirect to login or show an error to the user
+            return; // Stop here if no user ID
+          }
+
+          try {
+            const sessionData = {
+              userId: userId,
+              exerciseId: exerciseId,
+              sessionDate: new Date(),
+              duration: workoutDuration,
+              totalReps: displayReps,
+              correctReps: displayReps,
+              accuracy: 0,
+              repDetails: [],
+              tierName: currentTierName,
+            };
+
+            // --- NEW CONSOLE LOGS START ---
+            console.log("Session data payload:", sessionData);
+            // --- NEW CONSOLE LOGS END ---
+
+            await api.post("/sessions", sessionData);
+            console.log("Workout session saved successfully!");
+          } catch (saveError: any) {
+            console.error(
+              "Failed to save workout session:",
+              saveError.response?.data?.message || saveError.message
+            );
+            // Check Network tab for backend response details
+          }
+        }
+      }
+    },
+    [exercise, workoutDuration, displayReps, currentTierName, exerciseId]
+  );
 
   const handleCountdownComplete = useCallback(() => {
     setShowCountdown(false);
@@ -507,20 +558,28 @@ const WorkoutPage: React.FC = () => {
     if (repCounterRef.current) {
       repCounterRef.current.reset();
     }
-    setCountdownWorkoutTime(60); // Reset countdown for the workout itself
-  }, [setIsWorkoutRunning, setWorkoutPhase, setDisplayReps, setDisplayFeedback, setCountdownWorkoutTime]);
+    setCountdownWorkoutTime(60);
+    if (exercise && exercise.tiers && exercise.tiers.length > 0) {
+      const initialTierInfo = getTierInfo(0, exercise.tiers);
+      setCurrentTierName(initialTierInfo.currentTierName);
+      setTierProgress(initialTierInfo.progressInTier);
+    }
+  }, [
+    setIsWorkoutRunning,
+    setWorkoutPhase,
+    setDisplayReps,
+    setDisplayFeedback,
+    setCountdownWorkoutTime,
+    exercise,
+  ]);
 
-  // FIX: Ensure handleTimeUpdate only updates if the workout is active
   const handleTimeUpdate = useCallback(
     (seconds: number) => {
-      // Only update time-related states if the workout is still in the 'active' phase.
-      // This prevents further updates once stopWorkout has been called and changed the phase.
       if (workoutPhase === "active") {
         setCountdownWorkoutTime(seconds);
         setWorkoutDuration(seconds);
 
         if (seconds <= 0) {
-          // Pass 'false' because it's a natural completion by time
           stopWorkout(false);
         }
       }
@@ -584,6 +643,7 @@ const WorkoutPage: React.FC = () => {
         <p>Exercise not found.</p>
       </div>
     );
+
   return (
     <div className="container-fluid" style={{ padding: 0 }}>
       {/* Header-only show when not in active workout */}
@@ -618,7 +678,7 @@ const WorkoutPage: React.FC = () => {
         {/* 'X' Overlay Button (New) */}
         {workoutPhase === "active" && (
           <button
-            onClick={() => stopWorkout(true)} // Pass true for early exit
+            onClick={() => stopWorkout(true)}
             style={{
               position: "absolute",
               top: "15px",
@@ -632,14 +692,14 @@ const WorkoutPage: React.FC = () => {
               fontSize: "1.8rem",
               fontWeight: "bold",
               cursor: "pointer",
-              zIndex: 20, // Ensure it's above other overlays if needed
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
+              zIndex: 20,
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              boxShadow: "0 2px 5px rgba(0,0,0,0.3)",
             }}
           >
-            &#x2715; {/* Unicode 'X' character */}
+            &#x2715;
           </button>
         )}
 
@@ -690,9 +750,54 @@ const WorkoutPage: React.FC = () => {
           feedback={displayFeedback}
           show={workoutPhase === "active"}
         />
+
+        {/* UI FOR TIER AND METER */}
+        {workoutPhase === "active" && currentTierName && (
+          <div
+            style={{
+              position: "absolute",
+              top: "20px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              backgroundColor: "rgba(0,0,0,0.7)",
+              color: "#fff",
+              padding: "10px 20px",
+              borderRadius: "25px",
+              fontSize: "1.2rem",
+              fontWeight: "bold",
+              zIndex: 10,
+              textAlign: "center",
+              minWidth: "180px",
+            }}
+          >
+            Tier: {currentTierName}
+            {tierProgress !== null && (
+              <div
+                style={{
+                  width: "100%",
+                  height: "8px",
+                  backgroundColor: "#333",
+                  borderRadius: "4px",
+                  marginTop: "5px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${tierProgress * 100}%`,
+                    height: "100%",
+                    backgroundColor: "#28a745",
+                    borderRadius: "4px",
+                    transition: "width 0.2s ease-out",
+                  }}
+                ></div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* NEW: Warning Message Overlay */}
+      {/* Warning Message Overlay */}
       {showWarning && (
         <div
           style={{
@@ -707,9 +812,9 @@ const WorkoutPage: React.FC = () => {
             fontSize: "1.8rem",
             fontWeight: "bold",
             textAlign: "center",
-            zIndex: 100, // Make sure it's on top
+            zIndex: 100,
             maxWidth: "80%",
-            boxShadow: "0 0 20px rgba(0,0,0,0.5)"
+            boxShadow: "0 0 20px rgba(0,0,0,0.5)",
           }}
         >
           <p>{warningMessage}</p>
@@ -717,15 +822,16 @@ const WorkoutPage: React.FC = () => {
             className="btn btn-light mt-3"
             onClick={() => {
               setShowWarning(false);
-              // Reset workout page to idle state
               setWorkoutPhase("idle");
               setShowPlaceholder(true);
               setCameraActive(false);
-              setWorkoutReport(null); // Clear any old report data
+              setWorkoutReport(null);
               setDisplayReps(0);
               setDisplayFeedback("Stand still to begin.");
               setWorkoutDuration(0);
               setCountdownWorkoutTime(60);
+              setCurrentTierName("");
+              setTierProgress(0);
             }}
           >
             OK
@@ -746,6 +852,8 @@ const WorkoutPage: React.FC = () => {
           setDisplayFeedback("Stand still to begin.");
           setWorkoutDuration(0);
           setCountdownWorkoutTime(60);
+          setCurrentTierName("");
+          setTierProgress(0);
         }}
         show={showReport}
       />

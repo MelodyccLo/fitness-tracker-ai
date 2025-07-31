@@ -1,7 +1,7 @@
-import { DataTypes, Model, Optional } from 'sequelize';
-import { sequelize } from '../config/database';
-import { User } from './User';
-import { Exercise } from './Exercise';
+import { DataTypes, Model, Optional } from "sequelize";
+import { sequelize } from "../config/database";
+import { User } from "./User";
+import { Exercise } from "./Exercise";
 
 interface RepDetail {
   repNumber: number;
@@ -20,13 +20,21 @@ interface WorkoutSessionAttributes {
   correctReps: number;
   accuracy: number;
   repDetails: RepDetail[];
+  tierName: string; // NEW FIELD for storing the achieved tier name
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-interface WorkoutSessionCreationAttributes extends Optional<WorkoutSessionAttributes, '_id' | 'createdAt' | 'updatedAt'> {}
+interface WorkoutSessionCreationAttributes
+  extends Optional<
+    WorkoutSessionAttributes,
+    "_id" | "createdAt" | "updatedAt"
+  > {}
 
-export class WorkoutSession extends Model<WorkoutSessionAttributes, WorkoutSessionCreationAttributes> implements WorkoutSessionAttributes {
+export class WorkoutSession
+  extends Model<WorkoutSessionAttributes, WorkoutSessionCreationAttributes>
+  implements WorkoutSessionAttributes
+{
   public _id!: string;
   public userId!: string;
   public exerciseId!: string;
@@ -36,6 +44,7 @@ export class WorkoutSession extends Model<WorkoutSessionAttributes, WorkoutSessi
   public correctReps!: number;
   public accuracy!: number;
   public repDetails!: RepDetail[];
+  public tierName!: string; // NEW FIELD
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
@@ -47,14 +56,14 @@ WorkoutSession.init(
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
-      allowNull: false
+      allowNull: false,
     },
     userId: {
       type: DataTypes.UUID,
       allowNull: false,
       references: {
         model: User, // Reference the User model
-        key: '_id',
+        key: "_id",
       },
     },
     exerciseId: {
@@ -62,7 +71,7 @@ WorkoutSession.init(
       allowNull: false,
       references: {
         model: Exercise, // Reference the Exercise model
-        key: '_id',
+        key: "_id",
       },
     },
     sessionDate: {
@@ -94,17 +103,26 @@ WorkoutSession.init(
       allowNull: false,
       defaultValue: [],
     },
+    // NEW: Add the tierName column definition
+    tierName: {
+      type: DataTypes.STRING,
+      allowNull: false, // Tier name should always be present for a workout session
+      defaultValue: "Uncategorized", // Default value for existing records if not provided
+    },
   },
   {
     sequelize,
-    tableName: 'workout_sessions',
+    tableName: "workout_sessions",
     timestamps: true,
   }
 );
 
 // Define associations after models are initialized
-User.hasMany(WorkoutSession, { foreignKey: 'userId', as: 'sessions' });
-WorkoutSession.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(WorkoutSession, { foreignKey: "userId", as: "sessions" });
+WorkoutSession.belongsTo(User, { foreignKey: "userId", as: "user" });
 
-Exercise.hasMany(WorkoutSession, { foreignKey: 'exerciseId', as: 'sessions' });
-WorkoutSession.belongsTo(Exercise, { foreignKey: 'exerciseId', as: 'exercise' });
+Exercise.hasMany(WorkoutSession, { foreignKey: "exerciseId", as: "sessions" });
+WorkoutSession.belongsTo(Exercise, {
+  foreignKey: "exerciseId",
+  as: "exercise",
+});

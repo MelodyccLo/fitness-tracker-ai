@@ -3,10 +3,11 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import { connectDB } from './config/database';
 import authRoutes from './routes/authRoutes';
 import exercisesRoutes from './routes/exercisesRoutes';
+import sessionsRoutes from './routes/sessions';
 import { sequelize } from './models';
+
 dotenv.config();
 
 const app = express();
@@ -21,14 +22,15 @@ app.use(express.json());
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/exercises', exercisesRoutes);
+app.use('/api/sessions', sessionsRoutes);
 
 // Basic health check route
 app.get('/api/health', (req, res) => {
   res.json({ message: 'Server is running!' });
 });
 
-// Connect to DB and then start server
-sequelize.sync().then(() => {
+
+sequelize.sync({ alter: true }).then(() => {
   console.log('Database synced (tables created/updated).');
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

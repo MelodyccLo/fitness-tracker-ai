@@ -1,0 +1,544 @@
+database: psql -U melodylo -d "fitness-tracker-ai"
+
+backend/src/models/Exercise.ts
+
+import { DataTypes, Model, Optional } from 'sequelize';
+import { sequelize } from '../config/database';
+
+interface Checkpoint {
+  keypoint1: string; // e.g., "left shoulder"
+  keypoint2: string; // e.g., "left elbow"
+  keypoint3: string; // e.g., "left wrist"
+  targetAngle: number;
+  tolerance: number;
+  phase: 'up' | 'down';
+}
+
+interface ExerciseAttributes {
+  _id: string;
+  name: string;
+  description: string;
+  targetMuscles: string[];
+  checkpoints: Checkpoint[];
+  instructions: string[];
+  difficulty: string; 
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+interface ExerciseCreationAttributes extends Optional<ExerciseAttributes, '_id' | 'createdAt' | 'updatedAt'> {}
+
+export class Exercise extends Model<ExerciseAttributes, ExerciseCreationAttributes> implements ExerciseAttributes {
+  public _id!: string;
+  public name!: string;
+  public description!: string;
+  public targetMuscles!: string[];
+  public checkpoints!: Checkpoint[];
+  public instructions!: string[];
+  public difficulty!: string;
+
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
+}
+
+Exercise.init(
+  {
+    _id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+      allowNull: false
+    },
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    description: {
+      type: DataTypes.TEXT,
+    },
+    targetMuscles: {
+      type: DataTypes.ARRAY(DataTypes.STRING),
+      defaultValue: [],
+    },
+    checkpoints: {
+      type: DataTypes.JSONB, // Store as JSONB for complex nested data
+      allowNull: false,
+      defaultValue: [],
+    },
+    instructions: {
+      type: DataTypes.ARRAY(DataTypes.STRING),
+      defaultValue: [],
+    },
+    difficulty: {
+      type: DataTypes.STRING,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'exercises',
+    timestamps: true,
+  }
+);
+
+GET Current Exercise Database (http://localhost:5001/api/exercises)
+
+[
+    {
+        "_id": "b98cd4e4-ce85-4c62-ac6d-bac81416ad13",
+        "name": "Push-ups",
+        "description": "A classic upper body exercise.",
+        "targetMuscles": [
+            "Chest",
+            "Triceps",
+            "Shoulders"
+        ],
+        "checkpoints": [
+            {
+                "phase": "down",
+                "keypoint1": "left_shoulder",
+                "keypoint2": "left_elbow",
+                "keypoint3": "left_wrist",
+                "tolerance": 15,
+                "targetAngle": 90
+            },
+            {
+                "phase": "up",
+                "keypoint1": "left_shoulder",
+                "keypoint2": "left_elbow",
+                "keypoint3": "left_wrist",
+                "tolerance": 15,
+                "targetAngle": 170
+            },
+            {
+                "phase": "down",
+                "keypoint1": "right_shoulder",
+                "keypoint2": "right_elbow",
+                "keypoint3": "right_wrist",
+                "tolerance": 15,
+                "targetAngle": 90
+            },
+            {
+                "phase": "up",
+                "keypoint1": "right_shoulder",
+                "keypoint2": "right_elbow",
+                "keypoint3": "right_wrist",
+                "tolerance": 15,
+                "targetAngle": 170
+            }
+        ],
+        "instructions": [
+            "Start in a plank position...",
+            "Lower your body until chest nearly touches the floor...",
+            "Push back up."
+        ],
+        "difficulty": "Medium",
+        "createdAt": "2025-07-22T06:19:31.775Z",
+        "updatedAt": "2025-07-22T06:19:31.775Z"
+    },
+    {
+        "_id": "91110296-9a53-4bb2-b963-3493b37e86e0",
+        "name": "Squats",
+        "description": "A fundamental lower body exercise for strength and mobility.",
+        "targetMuscles": [
+            "Quadriceps",
+            "Hamstrings",
+            "Glutes"
+        ],
+        "checkpoints": [
+            {
+                "phase": "down",
+                "keypoint1": "left_hip",
+                "keypoint2": "left_knee",
+                "keypoint3": "left_ankle",
+                "tolerance": 15,
+                "targetAngle": 90
+            },
+            {
+                "phase": "up",
+                "keypoint1": "left_hip",
+                "keypoint2": "left_knee",
+                "keypoint3": "left_ankle",
+                "tolerance": 15,
+                "targetAngle": 170
+            },
+            {
+                "phase": "down",
+                "keypoint1": "right_hip",
+                "keypoint2": "right_knee",
+                "keypoint3": "right_ankle",
+                "tolerance": 15,
+                "targetAngle": 90
+            },
+            {
+                "phase": "up",
+                "keypoint1": "right_hip",
+                "keypoint2": "right_knee",
+                "keypoint3": "right_ankle",
+                "tolerance": 15,
+                "targetAngle": 170
+            }
+        ],
+        "instructions": [
+            "Stand with feet shoulder-width apart, toes slightly out.",
+            "Lower your hips as if sitting in a chair, keeping your back straight and chest up.",
+            "Descend until your thighs are parallel to the floor (or deeper if comfortable), then push back up."
+        ],
+        "difficulty": "Easy",
+        "createdAt": "2025-07-22T06:48:09.385Z",
+        "updatedAt": "2025-07-22T06:48:09.385Z"
+    },
+    {
+        "_id": "ee8a0676-2003-471c-8e84-ce10ac00c67d",
+        "name": "Sit-ups",
+        "description": "A classic abdominal exercise for core strength.",
+        "targetMuscles": [
+            "Abs",
+            "Obliques",
+            "Hip Flexors"
+        ],
+        "checkpoints": [
+            {
+                "phase": "down",
+                "keypoint1": "left_hip",
+                "keypoint2": "left_shoulder",
+                "keypoint3": "right_hip",
+                "tolerance": 15,
+                "targetAngle": 180
+            },
+            {
+                "phase": "up",
+                "keypoint1": "left_hip",
+                "keypoint2": "left_shoulder",
+                "keypoint3": "right_hip",
+                "tolerance": 15,
+                "targetAngle": 45
+            }
+        ],
+        "instructions": [
+            "Lie on your back with knees bent and feet flat on the floor.",
+            "Place your hands behind your head or across your chest.",
+            "Engage your core and lift your upper body towards your knees.",
+            "Slowly lower back down to the starting position."
+        ],
+        "difficulty": "Easy",
+        "createdAt": "2025-07-22T06:48:26.562Z",
+        "updatedAt": "2025-07-22T06:48:26.562Z"
+    },
+    {
+        "_id": "e40c5154-da79-4aa2-9de5-510ea749a091",
+        "name": "Tricep Dips",
+        "description": "An effective bodyweight exercise for triceps development.",
+        "targetMuscles": [
+            "Triceps",
+            "Shoulders",
+            "Chest"
+        ],
+        "checkpoints": [
+            {
+                "phase": "down",
+                "keypoint1": "left_shoulder",
+                "keypoint2": "left_elbow",
+                "keypoint3": "left_wrist",
+                "tolerance": 15,
+                "targetAngle": 90
+            },
+            {
+                "phase": "up",
+                "keypoint1": "left_shoulder",
+                "keypoint2": "left_elbow",
+                "keypoint3": "left_wrist",
+                "tolerance": 15,
+                "targetAngle": 170
+            },
+            {
+                "phase": "down",
+                "keypoint1": "right_shoulder",
+                "keypoint2": "right_elbow",
+                "keypoint3": "right_wrist",
+                "tolerance": 15,
+                "targetAngle": 90
+            },
+            {
+                "phase": "up",
+                "keypoint1": "right_shoulder",
+                "keypoint2": "right_elbow",
+                "keypoint3": "right_wrist",
+                "tolerance": 15,
+                "targetAngle": 170
+            }
+        ],
+        "instructions": [
+            "Sit on the edge of a sturdy bench or chair, hands gripping the edge beside your hips.",
+            "Slide your hips off the edge and lower your body by bending your elbows.",
+            "Keep your back close to the bench and lower until your elbows are at about a 90-degree angle.",
+            "Push back up to the starting position."
+        ],
+        "difficulty": "Medium",
+        "createdAt": "2025-07-22T06:48:41.958Z",
+        "updatedAt": "2025-07-22T06:48:41.958Z"
+    },
+    {
+        "_id": "23c0d7e0-ca09-4e9d-b46d-dae701ac368e",
+        "name": "High Knees",
+        "description": "A dynamic cardio exercise focusing on leg and hip flexion.",
+        "targetMuscles": [
+            "Cardio",
+            "Quadriceps",
+            "Hip Flexors"
+        ],
+        "checkpoints": [
+            {
+                "phase": "up",
+                "keypoint1": "left_hip",
+                "keypoint2": "left_knee",
+                "keypoint3": "left_ankle",
+                "tolerance": 15,
+                "targetAngle": 90
+            },
+            {
+                "phase": "up",
+                "keypoint1": "right_hip",
+                "keypoint2": "right_knee",
+                "keypoint3": "right_ankle",
+                "tolerance": 15,
+                "targetAngle": 90
+            }
+        ],
+        "instructions": [
+            "Run in place, bringing your knees up towards your chest as high as possible.",
+            "Pump your arms simultaneously."
+        ],
+        "difficulty": "Medium",
+        "createdAt": "2025-07-22T06:48:56.434Z",
+        "updatedAt": "2025-07-22T06:48:56.434Z"
+    },
+    {
+        "_id": "1db6ae4a-9909-4a48-b80b-4202972b2be2",
+        "name": "Plank Hold",
+        "description": "An isometric exercise for core strength and stability.",
+        "targetMuscles": [
+            "Core",
+            "Shoulders",
+            "Glutes"
+        ],
+        "checkpoints": [
+            {
+                "phase": "down",
+                "keypoint1": "left_shoulder",
+                "keypoint2": "left_hip",
+                "keypoint3": "left_ankle",
+                "tolerance": 10,
+                "targetAngle": 180
+            },
+            {
+                "phase": "down",
+                "keypoint1": "right_shoulder",
+                "keypoint2": "right_hip",
+                "keypoint3": "right_ankle",
+                "tolerance": 10,
+                "targetAngle": 180
+            }
+        ],
+        "instructions": [
+            "Start in a push-up position, then lower onto your forearms.",
+            "Keep your body in a straight line from head to heels, engaging your core.",
+            "Hold this position."
+        ],
+        "difficulty": "Easy",
+        "createdAt": "2025-07-22T06:49:10.637Z",
+        "updatedAt": "2025-07-22T06:49:10.637Z"
+    },
+    {
+        "_id": "acac0781-61b9-479f-a9ce-50128d849c6f",
+        "name": "Mountain Climbers",
+        "description": "A dynamic core and cardio exercise in a plank-like position.",
+        "targetMuscles": [
+            "Core",
+            "Legs",
+            "Shoulders"
+        ],
+        "checkpoints": [
+            {
+                "phase": "down",
+                "keypoint1": "left_hip",
+                "keypoint2": "left_knee",
+                "keypoint3": "left_ankle",
+                "tolerance": 20,
+                "targetAngle": 90
+            },
+            {
+                "phase": "down",
+                "keypoint1": "right_hip",
+                "keypoint2": "right_knee",
+                "keypoint3": "right_ankle",
+                "tolerance": 20,
+                "targetAngle": 90
+            }
+        ],
+        "instructions": [
+            "Start in a high plank position, hands under shoulders.",
+            "Bring one knee towards your chest, then quickly switch legs.",
+            "Maintain a stable core throughout."
+        ],
+        "difficulty": "Medium",
+        "createdAt": "2025-07-22T06:49:21.584Z",
+        "updatedAt": "2025-07-22T06:49:21.584Z"
+    },
+    {
+        "_id": "a2d2923b-de72-4faf-bceb-056fcf68c01a",
+        "name": "Burpees",
+        "description": "A high-intensity, full-body exercise combining a squat, push-up, and jump.",
+        "targetMuscles": [
+            "Full Body (Cardio & Strength)"
+        ],
+        "checkpoints": [
+            {
+                "phase": "down",
+                "keypoint1": "left_hip",
+                "keypoint2": "left_knee",
+                "keypoint3": "left_ankle",
+                "tolerance": 20,
+                "targetAngle": 90
+            },
+            {
+                "phase": "down",
+                "keypoint1": "left_shoulder",
+                "keypoint2": "left_elbow",
+                "keypoint3": "left_wrist",
+                "tolerance": 20,
+                "targetAngle": 90
+            }
+        ],
+        "instructions": [
+            "Start standing, drop into a squat with hands on the floor.",
+            "Kick your feet back into a plank position.",
+            "Perform a push-up (optional).",
+            "Jump feet back to hands.",
+            "Explode up into a jump, raising hands overhead."
+        ],
+        "difficulty": "Hard",
+        "createdAt": "2025-07-22T06:49:34.217Z",
+        "updatedAt": "2025-07-22T06:49:34.217Z"
+    },
+    {
+        "_id": "df79daae-24b7-4a18-a226-d9841ad474ab",
+        "name": "Jumping Jacks",
+        "description": "A full-body cardiovascular exercise.",
+        "targetMuscles": [
+            "Full Body (Cardio)"
+        ],
+        "checkpoints": [
+            {
+                "phase": "down",
+                "keypoint1": "left_shoulder",
+                "keypoint2": "left_hip",
+                "keypoint3": "left_knee",
+                "tolerance": 15,
+                "targetAngle": 45
+            },
+            {
+                "phase": "up",
+                "keypoint1": "left_shoulder",
+                "keypoint2": "left_hip",
+                "keypoint3": "left_knee",
+                "tolerance": 15,
+                "targetAngle": 180
+            },
+            {
+                "phase": "down",
+                "keypoint1": "right_shoulder",
+                "keypoint2": "right_hip",
+                "keypoint3": "right_knee",
+                "tolerance": 15,
+                "targetAngle": 45
+            },
+            {
+                "phase": "up",
+                "keypoint1": "right_shoulder",
+                "keypoint2": "right_hip",
+                "keypoint3": "right_knee",
+                "tolerance": 15,
+                "targetAngle": 180
+            },
+            {
+                "phase": "down",
+                "keypoint1": "left_elbow",
+                "keypoint2": "left_shoulder",
+                "keypoint3": "left_hip",
+                "tolerance": 15,
+                "targetAngle": 160
+            },
+            {
+                "phase": "up",
+                "keypoint1": "left_elbow",
+                "keypoint2": "left_shoulder",
+                "keypoint3": "left_hip",
+                "tolerance": 15,
+                "targetAngle": 20
+            },
+            {
+                "phase": "down",
+                "keypoint1": "right_elbow",
+                "keypoint2": "right_shoulder",
+                "keypoint3": "right_hip",
+                "tolerance": 15,
+                "targetAngle": 160
+            },
+            {
+                "phase": "up",
+                "keypoint1": "right_elbow",
+                "keypoint2": "right_shoulder",
+                "keypoint3": "right_hip",
+                "tolerance": 15,
+                "targetAngle": 20
+            }
+        ],
+        "instructions": [
+            "Stand with feet together and arms at your sides.",
+            "Jump, spreading your feet wide while raising your arms overhead.",
+            "Jump back to the starting position."
+        ],
+        "difficulty": "Easy",
+        "createdAt": "2025-07-22T06:49:50.441Z",
+        "updatedAt": "2025-07-22T06:49:50.441Z"
+    },
+    {
+        "_id": "85502188-6bcd-4231-94e4-bd4b6ba14818",
+        "name": "Lunges",
+        "description": "An excellent exercise for leg strength, balance, and core stability.",
+        "targetMuscles": [
+            "Quadriceps",
+            "Hamstrings",
+            "Glutes",
+            "Calves"
+        ],
+        "checkpoints": [
+            {
+                "phase": "down",
+                "keypoint1": "left_hip",
+                "keypoint2": "left_knee",
+                "keypoint3": "left_ankle",
+                "tolerance": 15,
+                "targetAngle": 90
+            },
+            {
+                "phase": "up",
+                "keypoint1": "left_hip",
+                "keypoint2": "left_knee",
+                "keypoint3": "left_ankle",
+                "tolerance": 15,
+                "targetAngle": 170
+            }
+        ],
+        "instructions": [
+            "Stand tall, feet hip-width apart.",
+            "Step forward with one leg, lowering your hips until both knees are bent at approximately 90-degree angles.",
+            "Ensure your front knee is directly above your ankle and your back knee hovers above the ground.",
+            "Push back to the starting position and alternate legs."
+        ],
+        "difficulty": "Medium",
+        "createdAt": "2025-07-22T06:50:01.092Z",
+        "updatedAt": "2025-07-22T06:50:01.092Z"
+    }
+]

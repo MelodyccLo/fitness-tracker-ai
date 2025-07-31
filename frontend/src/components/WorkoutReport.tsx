@@ -6,6 +6,7 @@ interface WorkoutReportData {
   totalReps: number;
   accuracy: number;
   completedAt: Date;
+  tierName: string; // NEW: Add tierName to the interface here
 }
 
 interface WorkoutReportProps {
@@ -20,6 +21,15 @@ const WorkoutReport: React.FC<WorkoutReportProps> = ({
   show,
 }) => {
   if (!show || !report) return null;
+
+  // You can optionally format duration if you decide to display it later
+  const formatTime = (totalSeconds: number): string => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const remainingSeconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, "0")}:${remainingSeconds
+      .toString()
+      .padStart(2, "0")}`;
+  };
 
   return (
     <div
@@ -54,13 +64,13 @@ const WorkoutReport: React.FC<WorkoutReportProps> = ({
           <div
             style={{
               display: "grid",
-              // Changed from "1fr 1fr" to "1fr" to have a single column
-              gridTemplateColumns: "1fr",
+              gridTemplateColumns: "1fr", // Changed from "1fr 1fr" to "1fr" to have a single column
               gap: "20px",
               marginTop: "20px",
             }}
           >
             {/* Removed the Duration display section */}
+            {/* Keeping it commented out as per your previous instruction */}
             {/*
             <div>
               <h4 style={{ color: "#007bff" }}>Duration</h4>
@@ -75,6 +85,21 @@ const WorkoutReport: React.FC<WorkoutReportProps> = ({
                 {report.totalReps}
               </p>
             </div>
+            {/* NEW: Display the achieved Tier */}
+            {report.tierName && (
+              <div>
+                <h4 style={{ color: "#28a745" }}>Achieved Tier</h4>
+                <p
+                  style={{
+                    fontSize: "1.5rem",
+                    fontWeight: "bold",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {report.tierName}
+                </p>
+              </div>
+            )}
           </div>
         </div>
         <button

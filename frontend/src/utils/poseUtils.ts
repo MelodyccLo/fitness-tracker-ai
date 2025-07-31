@@ -28,7 +28,7 @@ export function calculateAngle(
 
   // Avoid division by zero
   if (magnitude1 === 0 || magnitude2 === 0) {
-    return 0; // Or handle as an error/invalid case
+    return 0;
   }
 
   // Calculate angle in radians using arccosine
@@ -38,7 +38,6 @@ export function calculateAngle(
 
   // Convert to degrees
   const angleDeg = angleRad * (180 / Math.PI);
-
   return angleDeg;
 }
 
@@ -52,7 +51,14 @@ export interface ExerciseCheckpoint {
   phase: "up" | "down";
 }
 
-// NEW: Interface for Exercise (consistent with your backend model)
+// NEW: Define the ExerciseTier interface for the frontend
+export interface ExerciseTier {
+  name: string;
+  minReps: number;
+  maxReps: number | null;
+}
+
+// NEW: Interface for Exercise (consistent with your backend model, now including tiers)
 export interface Exercise {
   _id: string;
   name: string;
@@ -61,6 +67,92 @@ export interface Exercise {
   checkpoints: ExerciseCheckpoint[];
   instructions: string[];
   difficulty: string;
+  tiers: ExerciseTier[];
+}
+
+// NEW FUNCTION: getTierInfo
+export function getTierInfo(
+  currentReps: number,
+  tiers: ExerciseTier[]
+): {
+  currentTierName: string;
+  tierMinReps: number;
+  tierMaxReps: number | null;
+  progressInTier: number; // 0 to 1, representing progress within the current tier's range
+} {
+  let currentTier: ExerciseTier | null = null;
+  let nextTierMinReps: number | null = null;
+
+  // Sort tiers by minReps to ensure correct processing, especially if definition order isn't guaranteed
+  // (though typically they'd be defined in ascending order)
+  const sortedTiers = [...tiers].sort((a, b) => a.minReps - b.minReps);
+
+  for (let i = 0; i < sortedTiers.length; i++) {
+    const tier = sortedTiers[i];
+
+    // Check if currentReps falls within this tier's range
+    // Handles 'null' for maxReps for the highest tier
+    if (
+      currentReps >= tier.minReps &&
+      (tier.maxReps === null || currentReps <= tier.maxReps)
+    ) {
+      currentTier = tier;
+      // If there's a next tier, get its minReps to help calculate progress for the current tier
+      if (i + 1 < sortedTiers.length) {
+        nextTierMinReps = sortedTiers[i + 1].minReps;
+      }
+      break; // Found the current tier
+    }
+  }
+
+  // Handle cases where no tier is matched (e.g., negative reps, or data issues)
+  // Or if reps are below the first tier's minReps (though minReps usually starts at 0)
+  if (!currentTier) {
+    // Default to the first tier if reps are below its minReps but positive
+    if (
+      sortedTiers.length > 0 &&
+      currentReps < sortedTiers[0].minReps &&
+      currentReps >= 0
+    ) {
+      currentTier = sortedTiers[0];
+      if (sortedTiers.length > 1) {
+        nextTierMinReps = sortedTiers[1].minReps;
+      }
+    } else {
+      // Fallback for unexpected cases, or if tiers array is empty
+      return {
+        currentTierName: "N/A",
+        tierMinReps: 0,
+        tierMaxReps: 0,
+        progressInTier: 0,
+      };
+    }
+  }
+
+  // Calculate progress within the current tier
+  let progressInTier = 0;
+  if (currentTier.maxReps === null) {
+    // For the highest tier ("Elite"), progress is always 1 (100%)
+    // or you could calculate it against the previous tier's max to show "how far past"
+    // For simplicity, let's say 100% once you hit the elite tier.
+    progressInTier = 1;
+  } else {
+    const tierRange = currentTier.maxReps - currentTier.minReps;
+    if (tierRange > 0) {
+      progressInTier = (currentReps - currentTier.minReps) / tierRange;
+      progressInTier = Math.min(1, Math.max(0, progressInTier)); // Clamp between 0 and 1
+    } else {
+      // This case means minReps === maxReps, typically a single-rep tier, so progress is 1 if in it.
+      progressInTier = 1;
+    }
+  }
+
+  return {
+    currentTierName: currentTier.name,
+    tierMinReps: currentTier.minReps,
+    tierMaxReps: currentTier.maxReps,
+    progressInTier: progressInTier,
+  };
 }
 
 // Class to manage rep detection state for a single exercise
@@ -69,7 +161,6 @@ export class RepCounter {
   private inUpPhase: boolean = false;
   private repCount: number = 0;
   private currentCheckpoints: ExerciseCheckpoint[] = [];
-
   constructor(checkpoints: ExerciseCheckpoint[]) {
     this.currentCheckpoints = checkpoints;
   }
