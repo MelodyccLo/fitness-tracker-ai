@@ -1,3 +1,5 @@
+// frontend/src/components/WorkoutPage.tsx
+
 import React, {
   useRef,
   useEffect,
@@ -16,11 +18,10 @@ import {
   getTierInfo,
 } from "../utils/poseUtils";
 import api from "../utils/api";
-import { getUserIdFromToken } from "../utils/authUtils"; // NEW: Import the utility
+import { getUserIdFromToken } from "../utils/authUtils";
 
 // Import new components
 import CountdownOverlay from "./CountdownOverlay";
-import CameraPlaceholder from "./CameraPlaceholder";
 import WorkoutReport from "./WorkoutReport";
 import TimerOverlay from "./TimerOverlay";
 import ExerciseInfoOverlay from "./ExerciseInfoOverlay";
@@ -35,6 +36,8 @@ interface WorkoutReportData {
   accuracy: number;
   completedAt: Date;
   tierName: string;
+  tierMinReps: number; // NEW: Min reps of the achieved tier
+  tierMaxReps: number | null; // NEW: Max reps of the achieved tier
 }
 
 const WorkoutPage: React.FC = () => {
@@ -51,15 +54,14 @@ const WorkoutPage: React.FC = () => {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null); // State to capture camera access errors
 
   const [workoutPhase, setWorkoutPhase] = useState<
     "idle" | "countdown" | "active" | "completed"
-  >("idle");
+  >("idle"); // 'idle' is the initial state before 'Start Workout'
   const [showCountdown, setShowCountdown] = useState(false);
   const [countdownValue, setCountdownValue] = useState(3);
-  const [cameraActive, setCameraActive] = useState(false);
-  const [showPlaceholder, setShowPlaceholder] = useState(true);
+  const [cameraActive, setCameraActive] = useState(false); // Controls camera/canvas visibility
   const [showReport, setShowReport] = useState(false);
   const [workoutReport, setWorkoutReport] = useState<WorkoutReportData | null>(
     null
@@ -77,6 +79,10 @@ const WorkoutPage: React.FC = () => {
 
   const [currentTierName, setCurrentTierName] = useState<string>("");
   const [tierProgress, setTierProgress] = useState<number>(0);
+  const [currentTierMinReps, setCurrentTierMinReps] = useState<number>(0);
+  const [currentTierMaxReps, setCurrentTierMaxReps] = useState<number | null>(
+    null
+  );
 
   const landmarkNameToIndex = useMemo(() => {
     const map: { [key: string]: number } = {
@@ -98,6 +104,7 @@ const WorkoutPage: React.FC = () => {
 
   const onResults = useCallback(
     (results: Results) => {
+      // Only process results if workout is active
       if (workoutPhase !== "active" || !exercise) {
         const canvasCtx = contextRef.current;
         const canvas = canvasElementRef.current;
@@ -261,6 +268,8 @@ const WorkoutPage: React.FC = () => {
             );
             setCurrentTierName(tierInfo.currentTierName);
             setTierProgress(tierInfo.progressInTier);
+            setCurrentTierMinReps(tierInfo.tierMinReps);
+            setCurrentTierMaxReps(tierInfo.tierMaxReps);
           }
         }
 
@@ -306,6 +315,7 @@ const WorkoutPage: React.FC = () => {
         setError(
           err.response?.data?.message || "Failed to load exercise details"
         );
+      } finally {
         setLoading(false);
       }
     };
@@ -319,6 +329,20 @@ const WorkoutPage: React.FC = () => {
   }, [exerciseId]);
 
   useEffect(() => {
+    // MediaPipe & Camera Setup useEffect logic only runs if cameraActive is true
+    // This is controlled by handleStartClick now
+    if (!cameraActive) {
+      // If the component mounts and camera is not active, ensure previous stream is stopped
+      const videoElement = videoElementRef.current;
+      if (videoElement && videoElement.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+        videoElement.srcObject = null;
+      }
+      return; // Exit early if camera is not active (and cleanup if it was active and turned off)
+    }
+
+    // Only proceed with camera initialization if cameraActive is true
     console.log("Unified MediaPipe & Camera Setup useEffect: Running.");
 
     const videoElement = videoElementRef.current;
@@ -326,16 +350,14 @@ const WorkoutPage: React.FC = () => {
     let ctx: CanvasRenderingContext2D | null = null;
 
     if (
-      !cameraActive ||
       !isVideoElementReady ||
       !isCanvasElementReady ||
       !videoElement ||
       !canvasElement
     ) {
       console.log(
-        "Unified MediaPipe & Camera Setup useEffect: Waiting for cameraActive or refs.",
+        "Unified MediaPipe & Camera Setup useEffect: Waiting for refs.",
         {
-          cameraActive,
           isVideoElementReady,
           isCanvasElementReady,
           video: videoElement,
@@ -345,13 +367,13 @@ const WorkoutPage: React.FC = () => {
       );
       return () => {
         console.log(
-          "Unified MediaPipe & Camera Setup useEffect: No setup to clean up (refs not ready on initial mount or camera not active)."
+          "Unified MediaPipe & Camera Setup useEffect: No setup to clean up (refs not ready)."
         );
       };
     }
 
     console.log(
-      "Unified MediaPipe & Camera Setup useEffect: All refs and state confirm mount and camera active. Proceeding with setup."
+      "Unified MediaPipe & Camera Setup useEffect: All refs and state confirm mount. Proceeding with setup."
     );
     ctx = canvasElement.getContext("2d");
     if (ctx) {
@@ -463,13 +485,13 @@ const WorkoutPage: React.FC = () => {
         ctx.clearRect(0, 0, canvasElement.width, canvasElement.height);
       }
     };
-  }, [onResults, isVideoElementReady, isCanvasElementReady, cameraActive]);
+  }, [onResults, isVideoElementReady, isCanvasElementReady, cameraActive]); // Re-run effect when cameraActive changes
 
   const stopWorkout = useCallback(
     async (isEarlyExit: boolean) => {
       setIsWorkoutRunning(false);
       setWorkoutPhase("completed");
-      setCameraActive(false);
+      setCameraActive(false); // Turn off camera display
 
       const videoElement = videoElementRef.current;
       if (videoElement && videoElement.srcObject) {
@@ -493,6 +515,8 @@ const WorkoutPage: React.FC = () => {
           accuracy: 0,
           completedAt: new Date(),
           tierName: currentTierName,
+          tierMinReps: currentTierMinReps,
+          tierMaxReps: currentTierMaxReps,
         };
         setWorkoutReport(report);
         setShowReport(true);
@@ -500,20 +524,13 @@ const WorkoutPage: React.FC = () => {
         setWarningMessage("");
 
         if (exercise && exerciseId) {
-          const userId = getUserIdFromToken(); // Get user ID from utility
-
-          // --- NEW CONSOLE LOGS START ---
-          console.log("Attempting to save workout session.");
-          console.log("Retrieved userId:", userId);
-          console.log("Exercise ID:", exerciseId);
-          // --- NEW CONSOLE LOGS END ---
+          const userId = getUserIdFromToken();
 
           if (!userId) {
             console.error(
               "User not authenticated. Cannot save workout session."
             );
-            // Optionally, redirect to login or show an error to the user
-            return; // Stop here if no user ID
+            return;
           }
 
           try {
@@ -529,10 +546,6 @@ const WorkoutPage: React.FC = () => {
               tierName: currentTierName,
             };
 
-            // --- NEW CONSOLE LOGS START ---
-            console.log("Session data payload:", sessionData);
-            // --- NEW CONSOLE LOGS END ---
-
             await api.post("/sessions", sessionData);
             console.log("Workout session saved successfully!");
           } catch (saveError: any) {
@@ -540,12 +553,19 @@ const WorkoutPage: React.FC = () => {
               "Failed to save workout session:",
               saveError.response?.data?.message || saveError.message
             );
-            // Check Network tab for backend response details
           }
         }
       }
     },
-    [exercise, workoutDuration, displayReps, currentTierName, exerciseId]
+    [
+      exercise,
+      workoutDuration,
+      displayReps,
+      currentTierName,
+      exerciseId,
+      currentTierMinReps,
+      currentTierMaxReps,
+    ]
   );
 
   const handleCountdownComplete = useCallback(() => {
@@ -563,6 +583,8 @@ const WorkoutPage: React.FC = () => {
       const initialTierInfo = getTierInfo(0, exercise.tiers);
       setCurrentTierName(initialTierInfo.currentTierName);
       setTierProgress(initialTierInfo.progressInTier);
+      setCurrentTierMinReps(initialTierInfo.tierMinReps);
+      setCurrentTierMaxReps(initialTierInfo.tierMaxReps);
     }
   }, [
     setIsWorkoutRunning,
@@ -611,18 +633,11 @@ const WorkoutPage: React.FC = () => {
 
   const handleStartClick = () => {
     if (workoutPhase === "idle") {
-      setCameraActive(true);
-      setShowPlaceholder(false);
-      setTimeout(() => {
-        startWorkout();
-      }, 500);
+      setCameraActive(true); // Activate camera immediately on start
+      setWorkoutPhase("countdown"); // Move directly to countdown
+      setShowCountdown(true);
+      setCountdownValue(3);
     }
-  };
-
-  const startWorkout = () => {
-    setWorkoutPhase("countdown");
-    setShowCountdown(true);
-    setCountdownValue(3);
   };
 
   if (loading)
@@ -646,156 +661,192 @@ const WorkoutPage: React.FC = () => {
 
   return (
     <div className="container-fluid" style={{ padding: 0 }}>
-      {/* Header-only show when not in active workout */}
+      {/* --- Initial Idle State: Show Exercise Info and Start Button --- */}
       {workoutPhase === "idle" && (
-        <div style={{ padding: "10px", textAlign: "left" }}>
-          <h1>{exercise.name}</h1>
-          <p>{exercise.description}</p>
-          <p>
+        <div className="text-left p-4">
+          <h1
+            style={{
+              fontFamily: "var(--font-heading)",
+              color: "var(--heading-color)",
+            }}
+          >
+            {exercise.name}
+          </h1>
+          <p
+            style={{
+              fontFamily: "var(--font-body)",
+              color: "var(--text-color)",
+            }}
+          >
+            {exercise.description}
+          </p>
+          <p
+            style={{
+              fontFamily: "var(--font-body)",
+              color: "var(--text-color)",
+            }}
+          >
             <strong>Target Muscles:</strong> {exercise.targetMuscles.join(", ")}
           </p>
-          <p>
+          <p
+            style={{
+              fontFamily: "var(--font-body)",
+              color: "var(--text-color)",
+            }}
+          >
             <strong>Difficulty:</strong> {exercise.difficulty}
           </p>
+          <h4
+            style={{
+              fontFamily: "var(--font-heading)",
+              color: "var(--heading-color)",
+              marginTop: "20px",
+            }}
+          >
+            Instructions:
+          </h4>
+          <ul
+            style={{
+              fontFamily: "var(--font-body)",
+              color: "var(--text-color)",
+              listStyleType: "disc",
+              display: "inline-block",
+              textAlign: "left",
+              marginLeft: "20px",
+            }}
+          >
+            {exercise.instructions.map((instruction, index) => (
+              <li key={index}>{instruction}</li>
+            ))}
+          </ul>
+          {cameraError && (
+            <p className="text-danger mt-3">
+              <strong>Camera Error:</strong> {cameraError} Please allow camera
+              permissions or check your camera.
+            </p>
+          )}
+          <div className="start-workout-button-container">
+            <button
+              className="btn btn-primary btn-lg"
+              onClick={handleStartClick}
+              style={{ minWidth: "200px" }}
+              disabled={!!cameraError}
+            >
+              Start Workout
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Control Buttons (removed the Finish Workout button from here) */}
-      <div style={{ textAlign: "center", padding: "10px" }}>
-        {workoutPhase === "idle" && (
-          <button
-            className="btn btn-success btn-lg"
-            onClick={handleStartClick}
-            style={{ minWidth: "200px" }}
-          >
-            Start Workout
-          </button>
-        )}
-      </div>
-
-      {/* Main Camera Area */}
-      <div className="camera-container">
-        {/* 'X' Overlay Button (New) */}
-        {workoutPhase === "active" && (
-          <button
-            onClick={() => stopWorkout(true)}
-            style={{
-              position: "absolute",
-              top: "15px",
-              left: "15px",
-              backgroundColor: "rgba(255, 0, 0, 0.7)",
-              color: "#fff",
-              border: "none",
-              borderRadius: "50%",
-              width: "50px",
-              height: "50px",
-              fontSize: "1.8rem",
-              fontWeight: "bold",
-              cursor: "pointer",
-              zIndex: 20,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              boxShadow: "0 2px 5px rgba(0,0,0,0.3)",
-            }}
-          >
-            &#x2715;
-          </button>
-        )}
-
-        {/* Camera Placeholder */}
-        <CameraPlaceholder
-          show={showPlaceholder}
-          onStart={handleStartClick}
-          exercise={exercise}
-          cameraError={cameraError}
-        />
-
-        {/* Video and Canvas */}
-        <video
-          ref={(el) => {
-            videoElementRef.current = el;
-            if (el) setIsVideoElementReady(true);
-            else setIsVideoElementReady(false);
+      {/* --- Active/Countdown/Completed States: Show Camera Area & Overlays --- */}
+      {/* The camera-container is ONLY rendered if workoutPhase is NOT idle */}
+      {workoutPhase !== "idle" && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "100%",
+            minHeight: "calc(100vh - 300px)", // Adjust 80px to your navbar's height
           }}
-          autoPlay
-          playsInline
-          muted
-          style={{ display: cameraActive ? "block" : "none" }}
-        ></video>
-        <canvas
-          ref={(el) => {
-            canvasElementRef.current = el;
-            if (el) setIsCanvasElementReady(true);
-            else setIsCanvasElementReady(false);
-          }}
-          style={{ display: cameraActive ? "block" : "none" }}
-        ></canvas>
+        >
+          <div className="camera-container">
+            {/* 'X' Overlay Button */}
+            {workoutPhase === "active" && (
+              <button
+                onClick={() => stopWorkout(true)}
+                className="stop-test-button"
+              >
+                &#x2715;
+              </button>
+            )}
 
-        {/* Overlays */}
-        <CountdownOverlay
-          value={countdownValue}
-          onComplete={handleCountdownComplete}
-          show={showCountdown}
-        />
-        <TimerOverlay
-          isRunning={isWorkoutRunning}
-          seconds={countdownWorkoutTime}
-          show={workoutPhase === "active"}
-          onTimeUpdate={handleTimeUpdate}
-          isCountdown={true}
-        />
-        <ExerciseInfoOverlay
-          reps={displayReps}
-          feedback={displayFeedback}
-          show={workoutPhase === "active"}
-        />
+            {/* Video and Canvas elements */}
+            <video
+              ref={(el) => {
+                videoElementRef.current = el;
+                if (el) setIsVideoElementReady(true);
+                else setIsVideoElementReady(false);
+              }}
+              autoPlay
+              playsInline
+              muted
+              style={{ display: cameraActive ? "block" : "none" }}
+            ></video>
+            <canvas
+              ref={(el) => {
+                canvasElementRef.current = el;
+                if (el) setIsCanvasElementReady(true);
+                else setIsCanvasElementReady(false);
+              }}
+              style={{ display: cameraActive ? "block" : "none" }}
+            ></canvas>
 
-        {/* UI FOR TIER AND METER */}
-        {workoutPhase === "active" && currentTierName && (
-          <div
-            style={{
-              position: "absolute",
-              top: "20px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              backgroundColor: "rgba(0,0,0,0.7)",
-              color: "#fff",
-              padding: "10px 20px",
-              borderRadius: "25px",
-              fontSize: "1.2rem",
-              fontWeight: "bold",
-              zIndex: 10,
-              textAlign: "center",
-              minWidth: "180px",
-            }}
-          >
-            Tier: {currentTierName}
-            {tierProgress !== null && (
+            {/* Overlays */}
+            <CountdownOverlay
+              value={countdownValue}
+              onComplete={handleCountdownComplete}
+              show={showCountdown}
+            />
+            <TimerOverlay
+              isRunning={isWorkoutRunning}
+              seconds={countdownWorkoutTime}
+              show={workoutPhase === "active"}
+              onTimeUpdate={handleTimeUpdate}
+              isCountdown={true}
+            />
+            <ExerciseInfoOverlay
+              reps={displayReps}
+              feedback={displayFeedback}
+              show={workoutPhase === "active"}
+            />
+
+            {/* UI FOR TIER AND METER */}
+            {workoutPhase === "active" && currentTierName && (
               <div
                 style={{
-                  width: "100%",
-                  height: "8px",
-                  backgroundColor: "#333",
-                  borderRadius: "4px",
-                  marginTop: "5px",
-                  overflow: "hidden",
+                  position: "absolute",
+                  top: "20px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  backgroundColor: "rgba(0,0,0,0.7)",
+                  color: "#fff",
+                  padding: "10px 20px",
+                  borderRadius: "25px",
+                  fontSize: "1.2rem",
+                  fontWeight: "bold",
+                  zIndex: 10,
+                  textAlign: "center",
+                  minWidth: "180px",
                 }}
               >
-                <div
-                  style={{
-                    width: `${tierProgress * 100}%`,
-                    height: "100%",
-                    backgroundColor: "#28a745",
-                    borderRadius: "4px",
-                    transition: "width 0.2s ease-out",
-                  }}
-                ></div>
+                {currentTierName}
+                {tierProgress !== null && (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "8px",
+                      backgroundColor: "#333",
+                      borderRadius: "4px",
+                      marginTop: "5px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      className="progress-bar-fill"
+                      style={{
+                        width: `${tierProgress * 100}%`,
+                        height: "100%",
+                        transition: "width 0.2s ease-out",
+                      }}
+                    ></div>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Warning Message Overlay */}
       {showWarning && (
@@ -809,7 +860,7 @@ const WorkoutPage: React.FC = () => {
             color: "#fff",
             padding: "30px",
             borderRadius: "15px",
-            fontSize: "1.8rem",
+            fontSize: "1.2 rem",
             fontWeight: "bold",
             textAlign: "center",
             zIndex: 100,
@@ -823,7 +874,6 @@ const WorkoutPage: React.FC = () => {
             onClick={() => {
               setShowWarning(false);
               setWorkoutPhase("idle");
-              setShowPlaceholder(true);
               setCameraActive(false);
               setWorkoutReport(null);
               setDisplayReps(0);
@@ -832,6 +882,8 @@ const WorkoutPage: React.FC = () => {
               setCountdownWorkoutTime(60);
               setCurrentTierName("");
               setTierProgress(0);
+              setCurrentTierMinReps(0);
+              setCurrentTierMaxReps(null);
             }}
           >
             OK
@@ -845,7 +897,6 @@ const WorkoutPage: React.FC = () => {
         onClose={() => {
           setShowReport(false);
           setWorkoutPhase("idle");
-          setShowPlaceholder(true);
           setCameraActive(false);
           setWorkoutReport(null);
           setDisplayReps(0);
@@ -854,6 +905,8 @@ const WorkoutPage: React.FC = () => {
           setCountdownWorkoutTime(60);
           setCurrentTierName("");
           setTierProgress(0);
+          setCurrentTierMinReps(0);
+          setCurrentTierMaxReps(null);
         }}
         show={showReport}
       />

@@ -47,7 +47,7 @@ const ExerciseSelection: React.FC = () => {
         ) : (
           exercises.map((exercise) => (
             <div className="col-md-4 mb-4" key={exercise._id}>
-              <Link to={`/exercise/${exercise._id}`} className="card-link text-decoration-none text-dark">
+              <Link to={`/workout/${exercise._id}`} className="card-link text-decoration-none text-dark">
                 <div className="card h-100">
                   <div className="card-body">
                     <h5 className="card-title">{exercise.name}</h5>

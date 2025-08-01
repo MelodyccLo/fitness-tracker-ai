@@ -2,22 +2,23 @@
 
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { isAuthenticated } from "../../utils/authUtils"; // NEW: Import isAuthenticated utility
+import { isAuthenticated } from '../../utils/authUtils'; // Import isAuthenticated utility
 
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const isUserAuthenticated = isAuthenticated(); // UPDATED: Use the utility function for consistency
+  const isUserAuthenticated = isAuthenticated();
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    localStorage.removeItem("token"); // Clear token
     alert("You have been logged out.");
-    navigate("/login");
+    navigate("/login"); // Redirect to login
   };
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav className="navbar navbar-expand-lg app-navbar"> {/* Use custom class for theming */}
       <div className="container-fluid">
-        <Link className="navbar-brand" to="/">
+        {/* App title/icon now links to /home for logged-in users */}
+        <Link className="navbar-brand" to={isUserAuthenticated ? "/home" : "/"}>
           Fitness Tracker AI
         </Link>
         <button
@@ -47,10 +48,8 @@ const Navbar: React.FC = () => {
                 <Link className="nav-link" to="/exercises">
                   Exercises
                 </Link>
-                <Link className="nav-link" to="/dashboard">
-                  {" "}
-                  {/* Keep link to /dashboard */}
-                  Dashboard
+                <Link className="nav-link" to="/profile"> {/* NEW: Link to /profile */}
+                  My Profile
                 </Link>
                 <button
                   className="btn btn-link nav-link custom-logout-btn"

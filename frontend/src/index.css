@@ -1,21 +1,151 @@
+/* frontend/src/index.css (or frontend/src/theme.css) */
+
+/* 1. Import Custom Fonts (Example with Google Fonts) */
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&family=Roboto+Mono&display=swap");
+
+/* 2. Define Custom CSS Variables (Your Brand Colors) */
+:root {
+  --primary-color: #4caf50;
+  --secondary-color: #607d8b;
+  --accent-color: #ffc107;
+  --background-color: #f8f9fa;
+  --card-background: #ffffff;
+  --text-color: #212529;
+  --heading-color: #343a40;
+  --error-color: #dc3545;
+
+  /* Font Families */
+  --font-body: "Montserrat", sans-serif;
+  --font-heading: "Montserrat", sans-serif;
+  --font-mono: "Roboto Mono", monospace;
+}
+
+/* 3. Apply Global Styles using Variables (Base Styles) */
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-body);
+  color: var(--text-color);
+  background-color: var(--background-color);
+  line-height: 1.6;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
-    monospace;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  color: var(--heading-color);
 }
 
+/* Component Overrides (Bootstrap, etc.) */
+.btn-primary {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+  color: white !important;
+}
+
+.alert-danger {
+  color: var(--text-color);
+  background-color: rgba(var(--error-color), 0.1) !important;
+  border-color: var(--error-color) !important;
+}
+
+.section-title {
+  color: var(--heading-color);
+  font-weight: bold;
+}
+
+.card {
+  background-color: var(--card-background);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.form-control.is-invalid,
+.form-select.is-invalid {
+  border-color: var(--error-color) !important;
+  box-shadow: 0 0 0 0.25rem rgba(var(--error-color), 0.25) !important;
+}
+.invalid-feedback {
+  color: var(--error-color) !important;
+}
+
+/* Navbar theming (Layout Specific) */
+.navbar.bg-dark {
+  background-color: var(--secondary-color) !important;
+}
+.navbar-brand,
+.nav-link {
+  font-family: var(--font-heading);
+  color: white !important;
+}
+.custom-logout-btn {
+  color: white !important;
+}
+
+.app-navbar {
+  background-color: var(--secondary-color) !important;
+}
+.navbar-brand,
+.app-navbar .nav-link,
+.app-navbar .custom-logout-btn {
+  font-family: var(--font-heading);
+  color: white !important;
+}
+
+.container .card {
+  margin-bottom: 3rem; /* 3rem is equivalent to Bootstrap's mb-5 spacing */
+}
+
+/* For smaller screens, ensure logout button looks like a link */
 @media (max-width: 991.98px) {
-  .navbar-collapse .custom-logout-btn {
-    display: block; /* Make it a block element */
-    width: 100%;    /* Make it take full width */
-    text-align: left; /* Align text to the left */
+  .app-navbar .custom-logout-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
   }
+}
+
+/* Add to frontend/src/WorkoutPage.css or frontend/src/index.css */
+.workout-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.workout-report-card {
+    /* Replaces inline styles for background, shadow, border-radius */
+    background-color: var(--card-background);
+    box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+    border-radius: 12px;
+}
+
+.tier-meter {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.tier-meter-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+/* Override Bootstrap progress bar colors with your theme colors */
+.progress {
+    /* Background color of the track is set inline, based on tierBaseColor with alpha */
+    border-radius: 5px; /* Match the bar's roundness */
+}
+
+.progress-bar {
+    /* Background color of the bar itself is set inline, based on tierProgressBarColor */
+    color: white; /* Ensure text on bar is visible */
+    text-align: center;
+    font-weight: bold;
+    border-radius: 5px; /* Match the track's roundness */
 }

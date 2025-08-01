@@ -1,47 +1,36 @@
 .camera-container {
-  position: relative; /* Ensure overlays position correctly */
-  width: min(90vw, 1200px); /* Responsive width, max 1200px */
-  height: min(56.25vw, 675px); /* Maintain 16:9 aspect ratio (56.25% of width = 9/16) */
-  max-height: 80vh; /* Keep as you have it, or adjust if needed */
-  margin: 10px auto;
+  position: relative;
+  width: min(90vw, 1200px);
+  height: min(56.25vw, 675px);
+  max-height: 80vh;
+  margin: 0;
   border: 2px solid #333;
   border-radius: 8px;
   overflow: hidden;
   background-color: #000;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  animation: fadeIn 0.5s ease-in;
 }
 
 .camera-container video,
 .camera-container canvas {
   width: 100% !important;
   height: 100% !important;
-  object-fit: cover; /* Ensures the video/canvas covers the container */
-  position: absolute; /* Allows overlays to sit on top */
+  object-fit: cover;
+  position: absolute;
   top: 0;
-  left: 0;
 }
 
 @keyframes pulse {
-  0% {
-    transform: translate(-50%, -50%) scale(1); /* Starting size */
-  }
-  50% {
-    transform: translate(-50%, -50%) scale(1.1); /* Slightly larger */
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(1); /* Back to starting size */
-  }
+  0% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.1); }
+  100% { transform: translate(-50%, -50%) scale(1); }
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
+
 .overlay {
   position: absolute;
   top: 0;
@@ -53,7 +42,6 @@
   align-items: center;
 }
 
-/* Add to WorkoutPage.css if you prefer to externalize the style */
 .stop-test-button {
   position: absolute;
   top: 10px;
@@ -69,9 +57,18 @@
   font-size: 1.2rem;
   font-weight: bold;
   line-height: 1;
-  background: rgba(255, 0, 0, 0.7); /* Red background for stop button */
-  color: white;
+  background: rgba(var(--error-color), 0.7) !important;
+  color: white !important;
   border: none;
   cursor: pointer;
   box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+.progress-bar-fill {
+  background-color: var(--primary-color) !important;
+}
+
+.start-workout-button-container {
+    margin-top: 30px;
+    text-align: left;
 }
